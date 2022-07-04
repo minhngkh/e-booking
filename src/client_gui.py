@@ -167,6 +167,9 @@ def login_window(sock):
     window.close()
 
 
+def booking():
+    pass
+
 def connect_server(host, port):
     # create socket
     try:
