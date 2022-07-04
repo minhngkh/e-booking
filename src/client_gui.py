@@ -194,8 +194,8 @@ def connect_server(host, port):
         print(received_packet.decode('utf-8'))
 
     # start
-    login_window(sock)
-    # image_window(sock)
+    # login_window(sock)
+    image_window(sock)
 
 
 # start
