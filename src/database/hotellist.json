@@ -3,12 +3,122 @@
         {
             "name":  "Crowne Plaza",
             "checkin": "2022-07-07 01:27:34",
-            "checkout":"2022-07-07 02:27:34"
+            "checkout":"2022-07-08 02:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Crowne Plaza.jpg"
         },
         {
-            "name":  "Crowne Plaza",
+            "name":  "Hotel Bliss",
+            "checkin": "2022-07-09 03:27:34",
+            "checkout":"2022-07-10 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Hotel Bliss.jpg"
+
+        },
+        {
+            "name":  "The New View",
             "checkin": "2022-07-07 03:27:34",
-            "checkout":"2022-07-07 04:27:34"
+            "checkout":"2022-07-11 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/The New View.jpg"
+            
+        },
+        {
+            "name":  "Sunset Lodge",
+            "checkin": "2022-07-11 03:27:34",
+            "checkout":"2022-07-12 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Sunset Lodge.jpg"
+            
+        },
+        {
+            "name":  "Hotel Elite",
+            "checkin": "2022-07-14 03:27:34",
+            "checkout":"2022-07-15 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Hotel Elite.jpg"
+
+        },
+        {
+            "name":  "Beacon Motel",
+            "checkin": "2022-07-10 03:27:34",
+            "checkout":"2022-07-15 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Beacon Motel.jpg"
+            
+        },
+        {
+            "name":  "Holly House",
+            "checkin": "2022-07-11 03:27:34",
+            "checkout":"2022-07-12 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Holly House.jpg"
+
+        },
+        {
+            "name":  "Budget Suites",
+            "checkin": "2022-07-13 03:27:34",
+            "checkout":"2022-07-15 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Holly House.jpg"
+
+        },
+        {
+            "name":  "Sapphires Hotel",
+            "checkin": "2022-07-12 03:27:34",
+            "checkout":"2022-07-14 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Sapphires Hotel.jpg"
+
+        },
+        {
+            "name":  "Friendship Inn",
+            "checkin": "2022-07-11 03:27:34",
+            "checkout":"2022-07-15 04:27:34",
+            "price":{
+                "ST": "350",
+                "DE": "450",
+                "SU": "550"
+            },
+            "img": "database/hotelimg/Friendship Inn.jpg"
+
         }
+
     ]
 }

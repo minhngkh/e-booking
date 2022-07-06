@@ -244,7 +244,11 @@ def searching(sock):
 def jsontest():
     with open("database/hotellist.json", "r") as f:
         data = json.load(f)
-    print(data['hotel'][0]['checkin'])
+    print(data['hotel'][0]['price']['DE'])
+    if data['hotel'][0]['checkin'] < data['hotel'][0]['checkout']:
+        print("OK")
+    else:
+        print("NOT OK")
 
 
 def connect_server(host, port):
