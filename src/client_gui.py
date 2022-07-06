@@ -2,6 +2,7 @@ import PySimpleGUI as sg
 import socket
 import sys
 import time
+import json
 
 from PIL import Image
 
@@ -171,7 +172,6 @@ def booking(sock):
     '''
         Booking Form
     Hotel Name: [HOTELNAME]
-    ID of Hotel: [ID]
     Room Reference: [BUTTON:STANDARD] [BUTTON:DELUXE] [BUTTON:SUITE]
     Check-in Date: [CHECKIN]
     Check-out Date: [CHECKOUT]
@@ -185,7 +185,6 @@ def booking(sock):
     layout = [
         [sg.Column([[title]], justification='center')],
         [sg.Text('Hotel Name', size=(12, 1)), sg.Input(key='-HOTELNAME-')],
-        [sg.Text('ID of Hotel', size=(12, 1)), sg.Input(key='-ID-')],
         [sg.Text('Room Reference', size=(12, 1)), 
                                 sg.Radio('Standard', 'group 1', key='-ST-'), 
                                 sg.Radio('Deluxe', 'group 1',key='-DE-'), 
@@ -205,8 +204,47 @@ def booking(sock):
         if event == sg.WIN_CLOSED or event == 'Submit':
             break
     
-    print("OK")
+
     window.close()
+
+def searching(sock):
+    '''
+        Searching
+    Hotel Name: [HOTELNAME]
+    ID of Hotel: [ID]
+    Check-in Date: [CHECKIN]
+    Check-out Date: [CHECKOUT]
+    '''
+
+    title = sg.Text('Searching', font='* 12 bold')
+    submit = sg.Button('Submit', font='* 12 bold')
+
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    layout = [
+        [sg.Column([[title]], justification='center')],
+        [sg.Text('Hotel Name', size=(12, 1)), sg.Input(key='-HOTELNAME-')],    
+        [sg.CalendarButton("Check-in Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKIN-', size=(45,1)) ],
+        [sg.CalendarButton("Check-out Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKOUT-', size=(45,1)) ],
+        [sg.Column([[submit]], justification='center')],
+        [collapse(error, 'sec_error', visible=False)]   
+       
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    while True:  # Event Loop
+        event, values = window.read()     
+
+        if event == sg.WIN_CLOSED or event == 'Submit':
+            break
+    
+
+    window.close()
+def jsontest():
+    with open("database/hotellist.json", "r") as f:
+        data = json.load(f)
+    print(data['hotel'][0]['checkin'])
 
 
 def connect_server(host, port):
@@ -238,7 +276,9 @@ def connect_server(host, port):
     # start
     # login_window(sock)
     #image_window(sock)
-    booking(sock)
+    #booking(sock)
+    #searching(sock)
+    jsontest()
 
 
 # start

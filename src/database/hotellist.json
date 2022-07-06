@@ -1,0 +1,14 @@
+{
+    "hotel":[
+        {
+            "name":  "Crowne Plaza",
+            "checkin": "2022-07-07 01:27:34",
+            "checkout":"2022-07-07 02:27:34"
+        },
+        {
+            "name":  "Crowne Plaza",
+            "checkin": "2022-07-07 03:27:34",
+            "checkout":"2022-07-07 04:27:34"
+        }
+    ]
+}
