@@ -155,5 +155,4 @@ cython_debug/
 *.code-workspace
 
 ### User ###
-data/
 sample/
