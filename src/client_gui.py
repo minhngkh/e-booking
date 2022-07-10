@@ -2,6 +2,7 @@ import PySimpleGUI as sg
 import socket
 import sys
 import time
+import pickle
 
 from PIL import Image
 
@@ -105,66 +106,236 @@ def image_window(sock):
 
                 print(e)
 
-    window.close()
+
+def main_menu(sock=None):
+    title = [sg.Text('Main menu', font='* 12 bold')]
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    layout = [
+        [sg.Column([title], justification='center')],
+        [sg.Button('Search')],
+        [sg.Button('Book')],
+        [sg.Button('Cancel')]
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    window.read()
+
+
+def register_window(sock):
+    '''
+        Register
+    username:    [INPUT:USERNAME]                          
+    password:    [INPUT:PASSWORD]
+    card number: [INPUT:CARD_NUMBER]
+    [ERROR] 
+    [BUTTON:REGISTER] [BUTTON:EXIT]
+    '''
+
+    title = [sg.Text('Register', font='* 12 bold')]
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    layout = [
+        [sg.Column([title], justification='center')],
+        [sg.Text('Username', size=(11, 1)), sg.Input(key='-USERNAME-')],
+        [sg.Text('Password', size=(11, 1)), sg.Input(key='-PASSWORD-', password_char='*')],
+        [sg.Text('Card number', size=(11, 1)), sg.Input(key='-CARD_NUMBER-')],
+        [collapse(error, 'sec_error', visible=False)],
+        [sg.Button('Register'), sg.Button('Back')]
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    while True:  # event Loop
+        event, values = window.read()
+
+        if event == sg.WIN_CLOSED:  # if user closes the window
+            window.close()
+            sys.exit(0)
+        elif event == 'Back':  # if user presses back button
+            window.close()
+            return welcome_window
+        elif event == 'Register':  # if user presses login button
+            username = values['-USERNAME-']
+            password = values['-PASSWORD-']
+            card_number = values['-CARD_NUMBER-']
+
+            # hide error line by default
+            toggle_sec_error = False
+
+            # 1. check if all fields are not empty
+            for field, value in (('Username', username), ('Password', password), ('Card number', card_number)):
+                if not value:
+                    toggle_sec_error = True
+                    error_msg = f'{field} cannot be empty'
+
+                    break
+
+            # 2. no empty field means no error yet, now validate the format of input information
+            if not toggle_sec_error:
+                # set error to true just for now
+                toggle_sec_error = True
+
+                if len(username) < 5:
+                    error_msg = 'Username is too short (min. 5)'
+                elif not username.isalnum():
+                    error_msg = 'Invalid username'
+                elif len(password) < 3:
+                    error_msg = 'Password is too short (min. 3)'
+                elif len(card_number) != 10 or not card_number.isdecimal():
+                    error_msg = 'Invalid card number'
+                else:
+                    # set to false since there is no error
+                    toggle_sec_error = False
+
+            # 3. still no error so now send input info to server
+            if not toggle_sec_error:
+                # send register_request
+                register_request = Packet('register', {'username': username,
+                                                       'password': password,
+                                                       'card_number': card_number})
+
+                send(sock, pickle.dumps(register_request))
+
+                # receive response from server (either success or fail)
+                received_packet = receive(sock)
+
+                # if connection is terminated
+                if not received_packet:
+                    toggle_sec_error = True
+                    error_msg = 'Cannot connect to server'
+
+                response = pickle.loads(received_packet)
+
+                # close register window if successful
+                if response.header == 'success':
+                    window.close()
+                    sg.popup('Register Successful', title=TITLE)
+                    return main_menu
+                else:
+                    toggle_sec_error = True
+                    error_msg = 'Username was taken'
+
+            # update the error message and display it
+            window['-ERROR-'].update(error_msg)
+            window['sec_error'].update(visible=True)
+
+            # clear password input field
+            window['-PASSWORD-'].update('')
 
 
 def login_window(sock):
     '''
         Login
-    username: [INPUT:USERNAME]
-    password: [INPUT:PASSWORD]
-    [ERROR]
+    username:    [INPUT:USERNAME]                          
+    password:    [INPUT:PASSWORD]
+    [ERROR] 
     [BUTTON:LOGIN] [BUTTON:EXIT]
     '''
 
-    title = sg.Text('Login', font='* 12 bold')
+    title = [sg.Text('Login', font='* 12 bold')]
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
     layout = [
-        [sg.Column([[title]], justification='center')],
+        [sg.Column([title], justification='center')],
         [sg.Text('Username', size=(11, 1)), sg.Input(key='-USERNAME-')],
         [sg.Text('Password', size=(11, 1)), sg.Input(key='-PASSWORD-', password_char='*')],
-        [sg.Text('Card number', size=(11, 1)), sg.Input(key='-CARD_NUMBER-')],
         [collapse(error, 'sec_error', visible=False)],
-        [sg.Button('Login'), sg.Button('Exit')]
+        [sg.Button('Login'), sg.Button('Back')]
     ]
 
     window = sg.Window(TITLE, layout)
 
-    while True:  # Event Loop
+    while True:  # event Loop
         event, values = window.read()
 
-        if event == sg.WIN_CLOSED or event == 'Exit':
-            break
-
-        elif event == 'Login':
+        if event == sg.WIN_CLOSED:  # if user closes the window
+            window.close()
+            sys.exit(0)
+        elif event == 'Back':  # if user presses back button
+            window.close()
+            return welcome_window
+        elif event == 'Login':  # if user presses login button
             username = values['-USERNAME-']
             password = values['-PASSWORD-']
-            card_number = values['-CARD_NUMBER-']
 
-            # hide previous error line
+            # hide error line by default
             toggle_sec_error = False
 
-            for field, value in (('Username', username), ('Password', password), ('Card number', card_number)):
+            # 1. check if all fields are not empty
+            for field, value in (('Username', username), ('Password', password)):
                 if not value:
                     toggle_sec_error = True
-                    window['-ERROR-'].update(f'{field} cannot be empty')
-                    window['sec_error'].update(visible=toggle_sec_error)
+                    error_msg = f'{field} cannot be empty'
 
                     break
 
-            if toggle_sec_error:
-                window['-PASSWORD-'].update('')
+            # 2. no error so now send login info to server
+            if not toggle_sec_error:
+                # send login_request
+                login_request = Packet('login', {'username': username,
+                                                 'password': password})
 
-                continue
-            else:
-                window['-ERROR-'].update('')
+                send(sock, pickle.dumps(login_request))
 
-            send(sock, username.encode())
-            send(sock, password.encode())
-            send(sock, card_number.encode())
+                # receive response from server (either success or fail)
+                received_packet = receive(sock)
 
+                # if connection is terminated
+                if not received_packet:
+                    toggle_sec_error = True
+                    error_msg = 'Cannot connect to server'
+
+                response = pickle.loads(received_packet)
+
+                # close login window if successful
+                if response.header == 'success':
+                    window.close()
+                    sg.popup('Login successful', title=TITLE)
+                    return main_menu
+                else:
+                    toggle_sec_error = True
+                    error_msg = 'Incorrect username or password'
+
+            # update the error message and display it
+            window['-ERROR-'].update(error_msg)
+            window['sec_error'].update(visible=True)
+
+            # clear password input field
+            window['-PASSWORD-'].update('')
+
+
+def welcome_window(sock=None):
+    '''
+        Welcome
+    [BUTTON:LOGIN] [BUTTON:REGISTER]
+    '''
+
+    title = [sg.Text('Welcome', font='* 12 bold')]
+
+    layout = [
+        [sg.Column([title], justification='center')],
+        [sg.Button('Login'), sg.Button('Register')]
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    # display window
+    event, values = window.read()
+
+    if event == sg.WIN_CLOSED:  # if user closes the window
+        window.close()
+        sys.exit(0)
+    elif event == 'Back':  # if user presses back button
+        window.close()
+        return welcome_window
+    if event == 'Login':  # if user pressed login button
+        window.close()
+        return login_window
+    # user presses register button
     window.close()
+    return register_window
 
 
 def connect_server(host, port):
@@ -194,8 +365,9 @@ def connect_server(host, port):
         print(received_packet.decode('utf-8'))
 
     # start
-    # login_window(sock)
-    image_window(sock)
+    cur_window = welcome_window()
+    while(cur_window):
+        cur_window = cur_window(sock)
 
 
 # start
