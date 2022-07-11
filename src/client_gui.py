@@ -107,15 +107,52 @@ def image_window(sock):
                 print(e)
 
 
-def main_menu(sock=None):
-    title = [sg.Text('Main menu', font='* 12 bold')]
-    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+def list_hotels_menu(sock=None):
+    hotels = (('11111', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              ('1', 'test'),
+              )
+
+    # # send query to request for list of hotels
+    # send(sock, pickle.dumps(Packet('list_hotels')))
+
+    # # receive response from server (either success or fail)
+    # received_packet = receive(sock)
+
+    # # if connection is terminated
+    # if not received_packet:
+    #     toggle_sec_error = True
+    #     error_msg = 'Cannot connect to server'
+
+    # response = pickle.loads(received_packet)
+    COLS = 2
+    ROWS = len(hotels)
+
+    COL_WIDTHS = (5, 20)
+
+    hotels_table = [[val[i] for val in hotels] for i in range(COLS)]
+
+    title = [sg.Text('Hotels', font='* 12 bold')]
+    hotels_box = [sg.Listbox(hotels_table[i], size=(COL_WIDTHS[i], ROWS), pad=(0, 0), no_scrollbar=True,
+                             enable_events=False, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE)
+                  for i in range(2)]
 
     layout = [
         [sg.Column([title], justification='center')],
-        [sg.Button('Search')],
-        [sg.Button('Book')],
-        [sg.Button('Cancel')]
+        [sg.Text('Id'.center(COL_WIDTHS[0]), pad=(0, 0)), sg.Text('Name'.center(COL_WIDTHS[1], ' '), pad=(0, 0))],
+        [sg.Column([hotels_box], scrollable=True, vertical_scroll_only=True)]
     ]
 
     window = sg.Window(TITLE, layout)
@@ -123,13 +160,43 @@ def main_menu(sock=None):
     window.read()
 
 
+def main_menu(sock=None):
+    title = [sg.Text('Main menu', font='* 12 bold')]
+
+    layout = [
+        [sg.Column([title], justification='center')],
+        [sg.Button('List of hotels')],
+        [sg.Button('Your reservations')],
+        [sg.Button('Search')],
+        [sg.Button('Logout')]
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    event = window.read()[0]
+
+    if event == sg.WIN_CLOSED:  # if user closes the window
+        window.close()
+        sys.exit(0)
+    elif event == 'Logout':  # if user presses back button
+        window.close()
+        return welcome_window
+    elif event == 'List of hotels':
+        window.close()
+        return list_hotels_menu
+    elif event == 'Your reservations':
+        pass
+    elif event == 'Search':
+        pass
+
+
 def register_window(sock):
     '''
         Register
-    username:    [INPUT:USERNAME]                          
+    username:    [INPUT:USERNAME]
     password:    [INPUT:PASSWORD]
     card number: [INPUT:CARD_NUMBER]
-    [ERROR] 
+    [ERROR]
     [BUTTON:REGISTER] [BUTTON:EXIT]
     '''
 
@@ -228,9 +295,9 @@ def register_window(sock):
 def login_window(sock):
     '''
         Login
-    username:    [INPUT:USERNAME]                          
+    username:    [INPUT:USERNAME]
     password:    [INPUT:PASSWORD]
-    [ERROR] 
+    [ERROR]
     [BUTTON:LOGIN] [BUTTON:EXIT]
     '''
 
@@ -322,14 +389,11 @@ def welcome_window(sock=None):
     window = sg.Window(TITLE, layout)
 
     # display window
-    event, values = window.read()
+    event = window.read()[0]
 
     if event == sg.WIN_CLOSED:  # if user closes the window
         window.close()
         sys.exit(0)
-    elif event == 'Back':  # if user presses back button
-        window.close()
-        return welcome_window
     if event == 'Login':  # if user pressed login button
         window.close()
         return login_window
@@ -365,6 +429,7 @@ def connect_server(host, port):
         print(received_packet.decode('utf-8'))
 
     # start
+    list_hotels_menu()
     cur_window = welcome_window()
     while(cur_window):
         cur_window = cur_window(sock)
