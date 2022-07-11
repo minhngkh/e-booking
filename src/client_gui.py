@@ -167,6 +167,11 @@ def login_window(sock):
 
     window.close()
 
+def jsonDatabase():
+    with open("database/hotellist.json", "r") as f:
+        data = json.load(f)    
+    return data
+
 
 def booking(sock):
     '''
@@ -206,6 +211,37 @@ def booking(sock):
     
 
     window.close()
+def displayHotel(index,data):
+    '''
+        Hotel Details
+    Description
+    Room Reference with price (eg. Delux: 350$)
+    Image
+    '''
+
+    title = sg.Text('Hotel Details', font='* 12 bold')
+    submit = sg.Button('Submit', font='* 12 bold')
+
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    layout = [
+        [sg.Column([[title]], justification='center')],
+        [sg.Text('Crown Plaza')]
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    while True:  # Event Loop
+        event, values = window.read()     
+
+        if event == sg.WIN_CLOSED or event == 'Submit':
+            break
+    window.close()
+
+def checkAvailable(userCheckin,index,data):
+    Checkout = data['hotel'][index]['checkout']
+    if (userCheckin > Checkout): return 1
+    else: return 2
 
 def searching(sock):
     '''
@@ -232,23 +268,33 @@ def searching(sock):
     ]
 
     window = sg.Window(TITLE, layout)
-
+    data = jsonDatabase()
+    displayHotel(0,data)
     while True:  # Event Loop
         event, values = window.read()     
 
-        if event == sg.WIN_CLOSED or event == 'Submit':
+        if event == sg.WIN_CLOSED:
             break
+        else:
+            displayHotel(0,data)
+            flg = 0 # 0: Not found, 2: Not available, 1: Passed
+            numberOfHotel = len(data['hotel'])  
+            hotel = values['-HOTELNAME-']
+            
+            for i in range(numberOfHotel):
+                if(hotel == (data['hotel'][i]['name'])):
+                    userCheckin = data['hotel'][i]['checkin']
+                    flg = checkAvailable(userCheckin,i,data)
+                    if(flg == 1): displayHotel(i,data)
+                    else: sg.Print(hotel, 'not available.')
+                    break
+            if(flg == 0): sg.Print(hotel, 'not found. Pleas try again')  
+    
     
 
     window.close()
-def jsontest():
-    with open("database/hotellist.json", "r") as f:
-        data = json.load(f)
-    print(data['hotel'][0]['price']['DE'])
-    if data['hotel'][0]['checkin'] < data['hotel'][0]['checkout']:
-        print("OK")
-    else:
-        print("NOT OK")
+   
+   
 
 
 def connect_server(host, port):
@@ -281,8 +327,9 @@ def connect_server(host, port):
     # login_window(sock)
     #image_window(sock)
     #booking(sock)
-    #searching(sock)
-    jsontest()
+    searching(sock)
+    #jsonDatabase()
+    
 
 
 # start
