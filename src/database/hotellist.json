@@ -9,7 +9,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Crowne Plaza.jpg",
+            "img": "database/hotelimg/Crowne Plaza.png",
             "des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
         },
         {
@@ -21,7 +21,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Hotel Bliss.jpg",
+            "img": "database/hotelimg/Hotel Bliss.png",
             "des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
 
         },
@@ -34,7 +34,8 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/The New View.jpg"
+            "img": "database/hotelimg/The New View.png",
+            "des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
             
         },
         {
@@ -46,7 +47,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Sunset Lodge.jpg"
+            "img": "database/hotelimg/Sunset Lodge.png"
             ,"des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
             
         },
@@ -59,7 +60,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Hotel Elite.jpg"
+            "img": "database/hotelimg/Hotel Elite.png"
             ,"des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
 
         },
@@ -72,7 +73,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Beacon Motel.jpg"
+            "img": "database/hotelimg/Beacon Motel.png"
             ,"des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
             
         },
@@ -85,7 +86,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Holly House.jpg"
+            "img": "database/hotelimg/Holly House.png"
             ,"des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
 
         },
@@ -98,7 +99,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Holly House.jpg"
+            "img": "database/hotelimg/Holly House.png"
             ,"des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
 
         },
@@ -111,7 +112,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Sapphires Hotel.jpg"
+            "img": "database/hotelimg/Sapphires Hotel.png"
             ,"des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
 
         },
@@ -124,7 +125,7 @@
                 "DE": "450",
                 "SU": "550"
             },
-            "img": "database/hotelimg/Friendship Inn.jpg"
+            "img": "database/hotelimg/Friendship Inn.png"
             ,"des": "The best hotels in Maldives and sits exclusively at the tip of the South Male"
 
         }

@@ -3,7 +3,7 @@ import socket
 import sys
 import time
 import json
-
+import io,os
 from PIL import Image
 
 from functions import *
@@ -211,7 +211,19 @@ def booking(sock):
     
 
     window.close()
+
+
+
 def displayHotel(index,data):
+    hotelname = data['hotel'][index]['name']
+    price = data['hotel'][index]['price']
+    des = data['hotel'][index]['des']
+    img = data['hotel'][index]['img']
+    
+    STprice = 'Standard: ' + price['ST'] + '$'
+    DEprice = 'Deluxe: ' + price['DE'] + '$'
+    SUprice = 'Suite: ' + price['SU'] + '$'
+
     '''
         Hotel Details
     Description
@@ -224,9 +236,16 @@ def displayHotel(index,data):
 
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
+    extensions_allowed = (('IMAGE files', '*.png *.jpg *.jpeg'),
+                          ('ALL files', '*.*'))
     layout = [
         [sg.Column([[title]], justification='center')],
-        [sg.Text('Crown Plaza')]
+        [sg.Text(hotelname, size = (12,1))],
+        [sg.Text(des, size = (55,1))],
+        [sg.Text(STprice, size = (12,1))],
+        [sg.Text(DEprice, size = (12,1))],
+        [sg.Text(SUprice, size = (12,1))],
+        [sg.Image(filename = img)],
     ]
 
     window = sg.Window(TITLE, layout)
@@ -234,14 +253,33 @@ def displayHotel(index,data):
     while True:  # Event Loop
         event, values = window.read()     
 
-        if event == sg.WIN_CLOSED or event == 'Submit':
+        if event == sg.WIN_CLOSED:
             break
     window.close()
+
+
 
 def checkAvailable(userCheckin,index,data):
     Checkout = data['hotel'][index]['checkout']
     if (userCheckin > Checkout): return 1
     else: return 2
+
+
+
+def listOfHotel():
+    data = jsonDatabase()
+    numberOfHotel = len(data['hotel'])  
+    s = ""
+    title = sg.Text('List of Hotel', font='* 12 bold')
+    for i in range(numberOfHotel):
+        s += data['hotel'][i]['name'] + '\n'
+
+    sg.PopupScrolled("Hotel List\n", f"{s}")  
+
+    
+        
+                    
+
 
 def searching(sock):
     '''
@@ -254,6 +292,8 @@ def searching(sock):
 
     title = sg.Text('Searching', font='* 12 bold')
     submit = sg.Button('Submit', font='* 12 bold')
+    list = sg.Button('List of Hotel', font='* 12 bold')
+    bookingButton = sg.Button('Booking', font='* 12 bold')
 
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
@@ -262,33 +302,38 @@ def searching(sock):
         [sg.Text('Hotel Name', size=(12, 1)), sg.Input(key='-HOTELNAME-')],    
         [sg.CalendarButton("Check-in Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKIN-', size=(45,1)) ],
         [sg.CalendarButton("Check-out Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKOUT-', size=(45,1)) ],
-        [sg.Column([[submit]], justification='center')],
+        [sg.Column([[submit]], justification='center'), sg.Column([[list]], justification='center'),sg.Column([[bookingButton]], justification='center')],        
         [collapse(error, 'sec_error', visible=False)]   
        
     ]
 
     window = sg.Window(TITLE, layout)
     data = jsonDatabase()
-    displayHotel(0,data)
+    
     while True:  # Event Loop
         event, values = window.read()     
 
         if event == sg.WIN_CLOSED:
             break
-        else:
-            displayHotel(0,data)
+        elif event == 'List of Hotel':
+            listOfHotel()
+        elif event == 'Booking':
+            booking(sock)
+        elif event == 'Submit':           
             flg = 0 # 0: Not found, 2: Not available, 1: Passed
             numberOfHotel = len(data['hotel'])  
             hotel = values['-HOTELNAME-']
             
             for i in range(numberOfHotel):
                 if(hotel == (data['hotel'][i]['name'])):
-                    userCheckin = data['hotel'][i]['checkin']
+                    userCheckin = values['-CHECKIN-']
                     flg = checkAvailable(userCheckin,i,data)
                     if(flg == 1): displayHotel(i,data)
-                    else: sg.Print(hotel, 'not available.')
+                    else: sg.Popup(hotel, 'not available.')
                     break
-            if(flg == 0): sg.Print(hotel, 'not found. Pleas try again')  
+            if(flg == 0): sg.Popup(hotel, 'not found. Please try again')  
+        else:
+            sg.Popup("Error")
     
     
 
@@ -328,8 +373,7 @@ def connect_server(host, port):
     #image_window(sock)
     #booking(sock)
     searching(sock)
-    #jsonDatabase()
-    
+   
 
 
 # start
