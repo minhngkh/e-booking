@@ -8,7 +8,7 @@ from PIL import Image
 @dataclass
 class Packet:
     header: str
-    content: dict = None
+    content: any = None
 
 
 BUFFER_SIZE = 2048

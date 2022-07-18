@@ -27,6 +27,24 @@ def handle_client_img(client_socket, address):
     print(f'{address} disconnected')
 
 
+def handle_list_hotels(client_socket, address, request=None):
+    # connect to database
+    db_connection = db.create_connection(DB_PATH)
+
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    # create query to get list of hotels
+    list_query = f"""
+    SELECT id, name
+    FROM hotels
+    """
+
+    hotels = db.execute_query(db_connection, list_query, True)
+    send(client_socket, pickle.dumps(Packet('success', hotels)))
+    print(f'{address} : list of hotels responded')
+
+
 def handle_client_register(client_socket, address, request):
     # request contains username, password, card_number
     username, password, card_number = (request.get(key) for key in ('username', 'password', 'card_number'))
@@ -55,7 +73,7 @@ def handle_client_register(client_socket, address, request):
     """
 
     # the query will return [(1,)] if info is found in database, otherwise [(0,)]
-    if (db.execute_query(db_connection, find_query, True)[0][0] == 0):
+    if db.execute_query(db_connection, find_query, True)[0][0] == 0:
         # add new register info to database
         insert_query = f"""
             INSERT INTO users (username, password, card_number)
@@ -103,7 +121,9 @@ def handle_client_login(client_socket, address, content):
     print(f'{address} : login failed')
 
 
-VALID_REQUESTS = {'login': handle_client_login, 'register': handle_client_register}
+VALID_REQUESTS = {'login': handle_client_login,
+                  'register': handle_client_register,
+                  'list: hotels': handle_list_hotels}
 
 
 def handle_client(client_socket, address):
