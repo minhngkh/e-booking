@@ -227,6 +227,49 @@ def checkHotelName(hotelname,id):
     else:
         return 0
 
+def displayHotel(index,data):
+    hotelname = data['hotel'][index]['name']
+    price = data['hotel'][index]['price']
+    des = data['hotel'][index]['des']
+    img = data['hotel'][index]['img']
+    
+    STprice = 'Standard: ' + price['ST'] + '$'
+    DEprice = 'Deluxe: ' + price['DE'] + '$'
+    SUprice = 'Suite: ' + price['SU'] + '$'
+
+    '''
+        Hotel Details
+    Description
+    Room Reference with price (eg. Delux: 350$)
+    Image
+    '''
+
+    title = sg.Text('Hotel Details', font='* 12 bold')
+    submit = sg.Button('Submit', font='* 12 bold')
+
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    extensions_allowed = (('IMAGE files', '*.png *.jpg *.jpeg'),
+                          ('ALL files', '*.*'))
+    layout = [
+        [sg.Column([[title]], justification='center')],
+        [sg.Text(hotelname, size = (12,1))],
+        [sg.Text(des, size = (55,1))],
+        [sg.Text(STprice, size = (12,1))],
+        [sg.Text(DEprice, size = (12,1))],
+        [sg.Text(SUprice, size = (12,1))],
+        [sg.Image(filename = img)],
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    while True:  # Event Loop
+        event, values = window.read()     
+
+        if event == sg.WIN_CLOSED:
+            break
+    window.close()
+
 
 def roomType(hotelname,id):
     '''
@@ -278,11 +321,12 @@ def roomType(hotelname,id):
 
     window = sg.Window(TITLE, layout)
     
-   
+    userRoomType = values['-TYPE-']
     while True:  # Event Loop
         event, values = window.read()     
 
         if event == sg.WIN_CLOSED or event == 'Submit':
+            
             break
       
     window.close()
@@ -366,62 +410,7 @@ def booking(sock):
 
 
 
-def displayHotel(index,data):
-    hotelname = data['hotel'][index]['name']
-    price = data['hotel'][index]['price']
-    des = data['hotel'][index]['des']
-    img = data['hotel'][index]['img']
-    
-    STprice = 'Standard: ' + price['ST'] + '$'
-    DEprice = 'Deluxe: ' + price['DE'] + '$'
-    SUprice = 'Suite: ' + price['SU'] + '$'
 
-    '''
-        Hotel Details
-    Description
-    Room Reference with price (eg. Delux: 350$)
-    Image
-    '''
-
-    title = sg.Text('Hotel Details', font='* 12 bold')
-    submit = sg.Button('Submit', font='* 12 bold')
-
-    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
-
-    extensions_allowed = (('IMAGE files', '*.png *.jpg *.jpeg'),
-                          ('ALL files', '*.*'))
-    layout = [
-        [sg.Column([[title]], justification='center')],
-        [sg.Text(hotelname, size = (12,1))],
-        [sg.Text(des, size = (55,1))],
-        [sg.Text(STprice, size = (12,1))],
-        [sg.Text(DEprice, size = (12,1))],
-        [sg.Text(SUprice, size = (12,1))],
-        [sg.Image(filename = img)],
-    ]
-
-    window = sg.Window(TITLE, layout)
-
-    while True:  # Event Loop
-        event, values = window.read()     
-
-        if event == sg.WIN_CLOSED:
-            break
-    window.close()
-
-
-
-
-def listOfHotel():
-    data = jsonDatabase()
-    numberOfHotel = len(data['hotel'])  
-    s = ""
-    title = sg.Text('List of Hotel', font='* 12 bold')
-    for i in range(numberOfHotel):
-        s += data['hotel'][i]['name'] + '\n'
-    
-    [sg.PopupScrolled("Hotel List\n", f"{s}")] 
-   
    
 
 
