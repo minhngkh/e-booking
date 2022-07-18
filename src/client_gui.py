@@ -169,43 +169,9 @@ def login_window(sock):
 
     window.close()
 
-def jsonDatabase():
-    with open("database/hotellist.json", "r") as f:
-        data = json.load(f)    
-    return data
-
-def checkAvailable(userCheckin,index,data):
-    Checkout = data['hotel'][index]['checkout']
-    if (userCheckin > Checkout): return 1
-    else: return 2
-
-def formatdate(date2):
-    from datetime import date
-    yymmddhhmmss = date2.split(" ")
-    date2 = yymmddhhmmss[0]
-    yymmdd = date2.split("-")
-    yy = int(yymmdd[0])
-    mm = int(yymmdd[1])
-    dd = int(yymmdd[2])
-    d = date(yy,mm,dd)
-    return d
-    
-
-def totalCost(index, roomRef,userCheckin,userCheckout,data):
-    pricePerDay = int(data['hotel'][index]['price'][roomRef])
-    checkinDate = formatdate(userCheckin)
-    checkoutDate = formatdate(userCheckout)
-    totalDays = (checkoutDate - checkinDate).days
-    total = totalDays * pricePerDay
-    sg.Popup("Total days: " + str(totalDays), "Price per Day: " + str(pricePerDay),"Total Cost: " + str(total))
     
     
-
-def changeStatus(index, userCheckin, userCheckout,data):
-    data['hotel'][index]['available'] = "??"
-    a_file = open("hotellist.json", "w")
-    json.dump(data, a_file)
-    a_file.close()
+    
 
 def checkHotelName(hotelname,id):
     # connect to database
@@ -326,7 +292,7 @@ def roomType(hotelname,id):
         event, values = window.read()     
 
         if event == sg.WIN_CLOSED or event == 'Submit':
-            
+            displayHotel()
             break
       
     window.close()
