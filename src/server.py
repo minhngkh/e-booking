@@ -106,7 +106,7 @@ def start_server(host, port):
 HOST = ''
 PORT = 2808
 MAX_CLIENTS = 5
-
+DB_PATH = 'data/db.sqlite'
 server_socket = start_server(HOST, PORT)
 
 stop_server(server_socket)

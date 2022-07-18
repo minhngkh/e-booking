@@ -1,12 +1,14 @@
+from xmlrpc.client import _strftime
 import PySimpleGUI as sg
 import socket
 import sys
 import time
 import json
-import io,os
+import datetime
 from PIL import Image
 
 from functions import *
+import database as db
 
 sg.theme('Dark Grey 9')
 TITLE = 'E-Booking'
@@ -172,6 +174,153 @@ def jsonDatabase():
         data = json.load(f)    
     return data
 
+def checkAvailable(userCheckin,index,data):
+    Checkout = data['hotel'][index]['checkout']
+    if (userCheckin > Checkout): return 1
+    else: return 2
+
+def formatdate(date2):
+    from datetime import date
+    yymmddhhmmss = date2.split(" ")
+    date2 = yymmddhhmmss[0]
+    yymmdd = date2.split("-")
+    yy = int(yymmdd[0])
+    mm = int(yymmdd[1])
+    dd = int(yymmdd[2])
+    d = date(yy,mm,dd)
+    return d
+    
+
+def totalCost(index, roomRef,userCheckin,userCheckout,data):
+    pricePerDay = int(data['hotel'][index]['price'][roomRef])
+    checkinDate = formatdate(userCheckin)
+    checkoutDate = formatdate(userCheckout)
+    totalDays = (checkoutDate - checkinDate).days
+    total = totalDays * pricePerDay
+    sg.Popup("Total days: " + str(totalDays), "Price per Day: " + str(pricePerDay),"Total Cost: " + str(total))
+    
+    
+
+def changeStatus(index, userCheckin, userCheckout,data):
+    data['hotel'][index]['available'] = "??"
+    a_file = open("hotellist.json", "w")
+    json.dump(data, a_file)
+    a_file.close()
+
+def checkHotelName(hotelname,id):
+    # connect to database
+    db_connection = db.create_connection(DB_PATH)
+
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    # validate login information
+    find_query = f"""
+    SELECT EXISTS(
+        SELECT 1
+        FROM hotels     
+        WHERE (id,name) = ('{id}','{hotelname}')
+        )
+    """
+    if db.execute_query(db_connection,find_query,True)[0][0] == 1:
+        return 1
+    else:
+        return 0
+
+
+def roomType(hotelname,id):
+    '''
+        Booking Form
+    Room Reference: [BUTTON:STANDARD] [BUTTON:DELUXE] [BUTTON:SUITE]
+    Check-in Date: [CHECKIN]
+    Check-out Date: [CHECKOUT]
+    '''
+        # connect to database
+    db_connection = db.create_connection(DB_PATH)
+    
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    
+    #Createacursor
+    c=db_connection.cursor()
+    #Query The Database
+
+    c.execute(f"""
+        SELECT name
+        FROM room_types 
+        WHERE hotel_id = '{id}'"""
+        )
+    
+    roomTypes=c.fetchall()
+    strRoom = ""
+    for room in roomTypes:
+        strRoom += room[0] + "\t\t"  
+    #Commit our command
+    db_connection.commit()
+    #Close our connection
+    db_connection.close()
+
+
+    title = sg.Text(hotelname, font='* 12 bold')
+    submit = sg.Button('Submit', font='* 12 bold')
+
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    layout = [
+        [sg.Column([[title]], justification='center')],
+        [sg.Text("\t\t"+ strRoom)],
+        [sg.Text("Type of Room", size=(12,1)),sg.Input(key='-TYPE-')],
+        [sg.Column([[submit]], justification='center')],
+        [collapse(error, 'sec_error', visible=False)]   
+       
+    ]
+
+    window = sg.Window(TITLE, layout)
+    
+   
+    while True:  # Event Loop
+        event, values = window.read()     
+
+        if event == sg.WIN_CLOSED or event == 'Submit':
+            break
+      
+    window.close()
+
+
+
+def testSQL():
+    id = 2
+    hotelname = "Melia Vinpearl Hue"
+    # connect to database
+    db_connection = db.create_connection(DB_PATH)
+    
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    
+    #Createacursor
+    c=db_connection.cursor()
+    #Query The Database
+
+    c.execute(f"""
+        SELECT name
+        FROM room_types 
+        WHERE hotel_id = '{id}'"""
+        )
+    
+    roomTypes=c.fetchall()
+    strRoom = ""
+    for room in roomTypes:
+        strRoom += room[0] + "\t\t"  
+    
+    print (strRoom) 
+    #Commit our command
+    db_connection.commit()
+    #Close our connection
+    db_connection.close()
+
+
 
 def booking(sock):
     '''
@@ -181,7 +330,7 @@ def booking(sock):
     Check-in Date: [CHECKIN]
     Check-out Date: [CHECKOUT]
     '''
-
+   #data = jsonDatabase()
     title = sg.Text('Booking Form', font='* 12 bold')
     submit = sg.Button('Submit', font='* 12 bold')
 
@@ -189,26 +338,29 @@ def booking(sock):
 
     layout = [
         [sg.Column([[title]], justification='center')],
+        [sg.Text('ID', size= (12,1)),sg.Input(key='-ID-')],
         [sg.Text('Hotel Name', size=(12, 1)), sg.Input(key='-HOTELNAME-')],
-        [sg.Text('Room Reference', size=(12, 1)), 
-                                sg.Radio('Standard', 'group 1', key='-ST-'), 
-                                sg.Radio('Deluxe', 'group 1',key='-DE-'), 
-                                sg.Radio('Suite', 'group 1',key='-SU-')],
-        [sg.CalendarButton("Check-in Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKIN-', size=(45,1)) ],
-        [sg.CalendarButton("Check-out Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKOUT-', size=(45,1)) ],
         [sg.Column([[submit]], justification='center')],
         [collapse(error, 'sec_error', visible=False)]   
        
     ]
 
     window = sg.Window(TITLE, layout)
+    
 
     while True:  # Event Loop
         event, values = window.read()     
 
-        if event == sg.WIN_CLOSED or event == 'Submit':
+        if event == sg.WIN_CLOSED:
             break
-    
+        elif event == 'Submit':           
+            flg = 0 # 0: Not found, 2: Not available, 1: Passed
+            
+            hotelname = values['-HOTELNAME-']
+            id = values['-ID-']   
+            if(checkHotelName(hotelname,id)):
+                roomType(hotelname,id)
+            else: sg.Popup(hotelname, 'not found. Please try again')          
 
     window.close()
 
@@ -259,12 +411,6 @@ def displayHotel(index,data):
 
 
 
-def checkAvailable(userCheckin,index,data):
-    Checkout = data['hotel'][index]['checkout']
-    if (userCheckin > Checkout): return 1
-    else: return 2
-
-
 
 def listOfHotel():
     data = jsonDatabase()
@@ -273,71 +419,8 @@ def listOfHotel():
     title = sg.Text('List of Hotel', font='* 12 bold')
     for i in range(numberOfHotel):
         s += data['hotel'][i]['name'] + '\n'
-
-    sg.PopupScrolled("Hotel List\n", f"{s}")  
-
     
-        
-                    
-
-
-def searching(sock):
-    '''
-        Searching
-    Hotel Name: [HOTELNAME]
-    ID of Hotel: [ID]
-    Check-in Date: [CHECKIN]
-    Check-out Date: [CHECKOUT]
-    '''
-
-    title = sg.Text('Searching', font='* 12 bold')
-    submit = sg.Button('Submit', font='* 12 bold')
-    list = sg.Button('List of Hotel', font='* 12 bold')
-    bookingButton = sg.Button('Booking', font='* 12 bold')
-
-    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
-
-    layout = [
-        [sg.Column([[title]], justification='center')],
-        [sg.Text('Hotel Name', size=(12, 1)), sg.Input(key='-HOTELNAME-')],    
-        [sg.CalendarButton("Check-in Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKIN-', size=(45,1)) ],
-        [sg.CalendarButton("Check-out Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKOUT-', size=(45,1)) ],
-        [sg.Column([[submit]], justification='center'), sg.Column([[list]], justification='center'),sg.Column([[bookingButton]], justification='center')],        
-        [collapse(error, 'sec_error', visible=False)]   
-       
-    ]
-
-    window = sg.Window(TITLE, layout)
-    data = jsonDatabase()
-    
-    while True:  # Event Loop
-        event, values = window.read()     
-
-        if event == sg.WIN_CLOSED:
-            break
-        elif event == 'List of Hotel':
-            listOfHotel()
-        elif event == 'Booking':
-            booking(sock)
-        elif event == 'Submit':           
-            flg = 0 # 0: Not found, 2: Not available, 1: Passed
-            numberOfHotel = len(data['hotel'])  
-            hotel = values['-HOTELNAME-']
-            
-            for i in range(numberOfHotel):
-                if(hotel == (data['hotel'][i]['name'])):
-                    userCheckin = values['-CHECKIN-']
-                    flg = checkAvailable(userCheckin,i,data)
-                    if(flg == 1): displayHotel(i,data)
-                    else: sg.Popup(hotel, 'not available.')
-                    break
-            if(flg == 0): sg.Popup(hotel, 'not found. Please try again')  
-        else:
-            sg.Popup("Error")
-    
-    
-
-    window.close()
+    [sg.PopupScrolled("Hotel List\n", f"{s}")] 
    
    
 
@@ -371,13 +454,15 @@ def connect_server(host, port):
     # start
     # login_window(sock)
     #image_window(sock)
-    #booking(sock)
-    searching(sock)
+    booking(sock)
+    #searching(sock)
+    #testSQL()
    
 
 
 # start
 HOST = '127.0.0.1'
 PORT = 2808
+DB_PATH = 'data/db.sqlite'
 
 connect_server(HOST, PORT)
