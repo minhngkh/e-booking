@@ -14,6 +14,29 @@ TITLE = 'E-Booking'
 DEFAULT_IMG_SIZE = 300
 
 
+def blank_line():
+    return sg.Text(font='_ 1')
+
+
+def align(layout, mode='both'):
+    if mode == 'both':
+        return [
+            [sg.VPush()],
+            [sg.Push(), sg.Column(layout), sg.Push()],
+            [sg.VPush()]
+        ]
+    if mode == 'vertical':
+        return [
+            [sg.VPush()],
+            [sg.Column(layout)],
+            [sg.VPush()]
+        ]
+    if mode == 'horizontal':
+        return [
+            [sg.Push(), sg.Column(layout), sg.Push()]
+        ]
+
+
 def collapse(layout, key, visible):
     '''
     Helper function that creates a Column that can be later made hidden, thus appearing "collapsed"
@@ -137,6 +160,8 @@ def list_hotels_menu(sock):
         [LIST]
     '''
 
+    WIN_SIZE = (420, 400)
+
     # default layout when there is not hotel
     default_col = [
         [sg.Text('List of Hotels', font='* 14 bold')],
@@ -147,7 +172,7 @@ def list_hotels_menu(sock):
         [sg.Push(), sg.Column(default_col, element_justification='center'), sg.Push()]
     ]
 
-    window = sg.Window(TITLE, layout)
+    window = sg.Window(TITLE, layout, size=WIN_SIZE)
 
     # send request to get the list of hotels
     list_hotels_request = Packet('list: hotels')
@@ -168,12 +193,12 @@ def list_hotels_menu(sock):
     # if there are hotels available, change layout
     if hotels:
         COLS = 2
-        ROWS = len(hotels) - 1
+        ROWS = len(hotels)
         ROWS_SHOW = 10
-        COL_WIDTHS = (6, 20)
+        COL_WIDTHS = (6, 30)
         PADDING = (4, 2)
 
-        data = [[val[i] for val in hotels[1::]] for i in range(COLS)]
+        data = [[val[i] for val in hotels] for i in range(COLS)]
 
         all_listbox = [sg.Listbox(data[i], size=(COL_WIDTHS[i], ROWS), pad=PADDING,
                                   no_scrollbar=True, enable_events=True, key=f'listbox {i}',
@@ -186,10 +211,11 @@ def list_hotels_menu(sock):
             [sg.Text('Id'.center(COL_WIDTHS[0]), pad=PADDING), sg.Text('Name'.center(COL_WIDTHS[1]), pad=PADDING)],
             [sg.Column([all_listbox], size=(None, min(ROWS_SHOW, ROWS) * 20), pad=PADDING, scrollable=True,
                        vertical_scroll_only=True)],
+            [sg.VPush()],
             [sg.Button('Back')]
         ]
 
-        window = sg.Window(TITLE, layout, finalize=True)
+        window = sg.Window(TITLE, layout, finalize=True, size=WIN_SIZE)
 
         # align content of list to center & remove underline in listbox
         for i in range(COLS):
@@ -216,10 +242,12 @@ def main_menu(sock=None):
 
     col = [
         [sg.Text('Main menu', font='* 14 bold')],
+        [blank_line()],
         [sg.Button('List of hotels', size=SIZE)],
         [sg.Button('Your reservations', size=SIZE)],
         [sg.Button('Search', size=SIZE)],
-        [sg.Button('Logout', size=SIZE)]
+        [sg.Button('Logout', size=SIZE)],
+        [blank_line()]
     ]
 
     layout = [
@@ -255,19 +283,22 @@ def register_window(sock):
     [BUTTON:REGISTER] [BUTTON:EXIT]
     '''
 
+    WIN_SIZE = (420, 220)
+
     title = [sg.Text('Register', font='* 14 bold')]
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
     layout = [
         [sg.Column([title], justification='center')],
+        [blank_line()],
         [sg.Text('Username', size=(11, 1)), sg.Input(key='-USERNAME-')],
         [sg.Text('Password', size=(11, 1)), sg.Input(key='-PASSWORD-', password_char='*')],
         [sg.Text('Card number', size=(11, 1)), sg.Input(key='-CARD_NUMBER-')],
-        [collapse(error, 'sec_error', visible=False)],
+        [collapse(error, 'sec_error', visible=True)],  # temporally disable collapsable error line
         [sg.Button('Register'), sg.Button('Back')]
     ]
 
-    window = sg.Window(TITLE, layout)
+    window = sg.Window(TITLE, layout, size=WIN_SIZE)
 
     while True:  # event Loop
         event, values = window.read()
@@ -356,18 +387,22 @@ def login_window(sock):
     [BUTTON:LOGIN] [BUTTON:EXIT]
     '''
 
+    WIN_SIZE = (420, 190)
+    BUTTON_SIZE = (5, 1)
+
     title = [sg.Text('Login', font='* 14 bold')]
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
     layout = [
         [sg.Column([title], justification='center')],
+        [blank_line()],
         [sg.Text('Username', size=(11, 1)), sg.Input(key='-USERNAME-')],
         [sg.Text('Password', size=(11, 1)), sg.Input(key='-PASSWORD-', password_char='*')],
-        [collapse(error, 'sec_error', visible=False)],
-        [sg.Button('Login'), sg.Button('Back')]
+        [collapse(error, 'sec_error', visible=True)],  # temporally disable collapsable error line
+        [sg.Button('Login', size=BUTTON_SIZE), sg.Button('Back', size=BUTTON_SIZE)],
     ]
 
-    window = sg.Window(TITLE, layout)
+    window = sg.Window(TITLE, layout, size=WIN_SIZE)
 
     while True:  # event Loop
         event, values = window.read()
@@ -434,14 +469,19 @@ def welcome_window(sock=None):
     [BUTTON:LOGIN] [BUTTON:REGISTER]
     '''
 
+    WIN_SIZE = (420, 190)
+    BUTTON_SIZE = (8, 1)
+
     title = [sg.Text('Welcome', font='* 14 bold')]
 
     layout = [
         [sg.Column([title], justification='center')],
-        [sg.Button('Login'), sg.Button('Register')]
+        [blank_line()],
+        [sg.Button('Login', size=BUTTON_SIZE)],
+        [sg.Button('Register', size=BUTTON_SIZE)]
     ]
 
-    window = sg.Window(TITLE, layout)
+    window = sg.Window(TITLE, align(layout), size=WIN_SIZE)
 
     # display window
     event = window.read()[0]
@@ -490,7 +530,6 @@ def connect_server(host, port):
 
 
 # start
-WIN_SIZE = (600, 600)
 HOST = '127.0.0.1'
 PORT = 2808
 
