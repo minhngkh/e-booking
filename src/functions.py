@@ -1,7 +1,15 @@
+from dataclasses import dataclass
 import struct
 import io
 
 from PIL import Image
+
+
+@dataclass
+class Packet:
+    header: str
+    content: dict = None
+
 
 BUFFER_SIZE = 2048
 HEADER_SIZE = 4

@@ -1,14 +1,18 @@
-from xmlrpc.client import _strftime
+from turtle import update
 import PySimpleGUI as sg
 import socket
 import sys
 import time
-import json
-import datetime
+import pickle
+
 from PIL import Image
 
 from functions import *
+
+#dev_phuc library
 import database as db
+import io,os
+import textwrap
 
 sg.theme('Dark Grey 9')
 TITLE = 'E-Booking'
@@ -34,7 +38,6 @@ def image_window(sock):
         [IMAGE]
     [ERROR]
     [BUTTON:SUBMIT] [BUTTON:CLOSE]
-
     '''
     extensions_allowed = (('IMAGE files', '*.png *.jpg *.jpeg'),
                           ('ALL files', '*.*'))
@@ -108,71 +111,239 @@ def image_window(sock):
 
                 print(e)
 
-    window.close()
+
+def main_menu(sock=None):
+    title = [sg.Text('Main menu', font='* 12 bold')]
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    layout = [
+        [sg.Column([title], justification='center')],
+        [sg.Button('Search')],
+        [sg.Button('Book')],
+        [sg.Button('Cancel')]
+    ]
+    
+    window = sg.Window(TITLE, layout)
+
+    window.read()
+
+
+def register_window(sock):
+    '''
+        Register
+    username:    [INPUT:USERNAME]                          
+    password:    [INPUT:PASSWORD]
+    card number: [INPUT:CARD_NUMBER]
+    [ERROR] 
+    [BUTTON:REGISTER] [BUTTON:EXIT]
+    '''
+
+    title = [sg.Text('Register', font='* 12 bold')]
+    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+
+    layout = [
+        [sg.Column([title], justification='center')],
+        [sg.Text('Username', size=(11, 1)), sg.Input(key='-USERNAME-')],
+        [sg.Text('Password', size=(11, 1)), sg.Input(key='-PASSWORD-', password_char='*')],
+        [sg.Text('Card number', size=(11, 1)), sg.Input(key='-CARD_NUMBER-')],
+        [collapse(error, 'sec_error', visible=False)],
+        [sg.Button('Register'), sg.Button('Back')]
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    while True:  # event Loop
+        event, values = window.read()
+
+        if event == sg.WIN_CLOSED:  # if user closes the window
+            window.close()
+            sys.exit(0)
+        elif event == 'Back':  # if user presses back button
+            window.close()
+            return welcome_window
+        elif event == 'Register':  # if user presses login button
+            username = values['-USERNAME-']
+            password = values['-PASSWORD-']
+            card_number = values['-CARD_NUMBER-']
+
+            # hide error line by default
+            toggle_sec_error = False
+
+            # 1. check if all fields are not empty
+            for field, value in (('Username', username), ('Password', password), ('Card number', card_number)):
+                if not value:
+                    toggle_sec_error = True
+                    error_msg = f'{field} cannot be empty'
+
+                    break
+
+            # 2. no empty field means no error yet, now validate the format of input information
+            if not toggle_sec_error:
+                # set error to true just for now
+                toggle_sec_error = True
+
+                if len(username) < 5:
+                    error_msg = 'Username is too short (min. 5)'
+                elif not username.isalnum():
+                    error_msg = 'Invalid username'
+                elif len(password) < 3:
+                    error_msg = 'Password is too short (min. 3)'
+                elif len(card_number) != 10 or not card_number.isdecimal():
+                    error_msg = 'Invalid card number'
+                else:
+                    # set to false since there is no error
+                    toggle_sec_error = False
+
+            # 3. still no error so now send input info to server
+            if not toggle_sec_error:
+                # send register_request
+                register_request = Packet('register', {'username': username,
+                                                       'password': password,
+                                                       'card_number': card_number})
+
+                send(sock, pickle.dumps(register_request))
+
+                # receive response from server (either success or fail)
+                received_packet = receive(sock)
+
+                # if connection is terminated
+                if not received_packet:
+                    toggle_sec_error = True
+                    error_msg = 'Cannot connect to server'
+
+                response = pickle.loads(received_packet)
+
+                # close register window if successful
+                if response.header == 'success':
+                    window.close()
+                    sg.popup('Register Successful', title=TITLE)
+                    return main_menu
+                else:
+                    toggle_sec_error = True
+                    error_msg = 'Username was taken'
+
+            # update the error message and display it
+            window['-ERROR-'].update(error_msg)
+            window['sec_error'].update(visible=True)
+
+            # clear password input field
+            window['-PASSWORD-'].update('')
 
 
 def login_window(sock):
     '''
         Login
-    username: [INPUT:USERNAME]
-    password: [INPUT:PASSWORD]
-    [ERROR]
+    username:    [INPUT:USERNAME]                          
+    password:    [INPUT:PASSWORD]
+    [ERROR] 
     [BUTTON:LOGIN] [BUTTON:EXIT]
     '''
 
-    title = sg.Text('Login', font='* 12 bold')
+    title = [sg.Text('Login', font='* 12 bold')]
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
     layout = [
-        [sg.Column([[title]], justification='center')],
+        [sg.Column([title], justification='center')],
         [sg.Text('Username', size=(11, 1)), sg.Input(key='-USERNAME-')],
         [sg.Text('Password', size=(11, 1)), sg.Input(key='-PASSWORD-', password_char='*')],
-        [sg.Text('Card number', size=(11, 1)), sg.Input(key='-CARD_NUMBER-')],
         [collapse(error, 'sec_error', visible=False)],
-        [sg.Button('Login'), sg.Button('Exit')]
+        [sg.Button('Login'), sg.Button('Back')]
     ]
 
     window = sg.Window(TITLE, layout)
 
-    while True:  # Event Loop
+    while True:  # event Loop
         event, values = window.read()
 
-        if event == sg.WIN_CLOSED or event == 'Exit':
-            break
-
-        elif event == 'Login':
+        if event == sg.WIN_CLOSED:  # if user closes the window
+            window.close()
+            sys.exit(0)
+        elif event == 'Back':  # if user presses back button
+            window.close()
+            return welcome_window
+        elif event == 'Login':  # if user presses login button
             username = values['-USERNAME-']
             password = values['-PASSWORD-']
-            card_number = values['-CARD_NUMBER-']
 
-            # hide previous error line
+            # hide error line by default
             toggle_sec_error = False
 
-            for field, value in (('Username', username), ('Password', password), ('Card number', card_number)):
+            # 1. check if all fields are not empty
+            for field, value in (('Username', username), ('Password', password)):
                 if not value:
                     toggle_sec_error = True
-                    window['-ERROR-'].update(f'{field} cannot be empty')
-                    window['sec_error'].update(visible=toggle_sec_error)
+                    error_msg = f'{field} cannot be empty'
 
                     break
 
-            if toggle_sec_error:
-                window['-PASSWORD-'].update('')
+            # 2. no error so now send login info to server
+            if not toggle_sec_error:
+                # send login_request
+                login_request = Packet('login', {'username': username,
+                                                 'password': password})
 
-                continue
-            else:
-                window['-ERROR-'].update('')
+                send(sock, pickle.dumps(login_request))
 
-            send(sock, username.encode())
-            send(sock, password.encode())
-            send(sock, card_number.encode())
+                # receive response from server (either success or fail)
+                received_packet = receive(sock)
 
+                # if connection is terminated
+                if not received_packet:
+                    toggle_sec_error = True
+                    error_msg = 'Cannot connect to server'
+
+                response = pickle.loads(received_packet)
+
+                # close login window if successful
+                if response.header == 'success':
+                    window.close()
+                    sg.popup('Login successful', title=TITLE)
+                    return main_menu, username
+                else:
+                    toggle_sec_error = True
+                    error_msg = 'Incorrect username or password'
+
+            # update the error message and display it
+            window['-ERROR-'].update(error_msg)
+            window['sec_error'].update(visible=True)
+
+            # clear password input field
+            window['-PASSWORD-'].update('')
+
+
+def welcome_window(sock=None):
+    '''
+        Welcome
+    [BUTTON:LOGIN] [BUTTON:REGISTER]
+    '''
+
+    title = [sg.Text('Welcome', font='* 12 bold')]
+
+    layout = [
+        [sg.Column([title], justification='center')],
+        [sg.Button('Login'), sg.Button('Register')]
+    ]
+
+    window = sg.Window(TITLE, layout)
+
+    # display window
+    event, values = window.read()
+
+    if event == sg.WIN_CLOSED:  # if user closes the window
+        window.close()
+        sys.exit(0)
+    elif event == 'Back':  # if user presses back button
+        window.close()
+        return welcome_window
+    if event == 'Login':  # if user pressed login button
+        window.close()
+        return login_window
+    # user presses register button
     window.close()
-
+    return register_window
     
     
     
-
 def checkHotelName(hotelname,id):
     # connect to database
     db_connection = db.create_connection(DB_PATH)
@@ -190,57 +361,131 @@ def checkHotelName(hotelname,id):
     """
     if db.execute_query(db_connection,find_query,True)[0][0] == 1:
         return 1
-    else:
-        return 0
+    else: return 0
 
-def displayHotel(index,data):
-    hotelname = data['hotel'][index]['name']
-    price = data['hotel'][index]['price']
-    des = data['hotel'][index]['des']
-    img = data['hotel'][index]['img']
+
+def checkInputRoom(userRoom,roomTypes):
+    for room in roomTypes:
+        if(userRoom == room[0]):
+            return 1
     
-    STprice = 'Standard: ' + price['ST'] + '$'
-    DEprice = 'Deluxe: ' + price['DE'] + '$'
-    SUprice = 'Suite: ' + price['SU'] + '$'
+    return 0
 
+
+def getRoomRef(typeID,db_connection):
+    c=db_connection.cursor()
+    c.execute(f"""
+        SELECT type_name
+        FROM room_type
+        WHERE id = ('{typeID}')"""
+        )
+    type_name = c.fetchall()[0][0]
+    return type_name
+    
+def checkAvailableType(userType,roomTypes):
+    for typeID in roomTypes:
+        if (typeID[0] == userType):
+            return 1
+    
+    return 0
+
+def userTypeID(values):
+    for index in range(1,6):
+        if values[index] == True:
+            return index    
+    return 0
+
+def dataRoom(typeID,hotelID):
+# connect to database
+    db_connection = db.create_connection(DB_PATH)
+    
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    
+    #Createacursor
+    c=db_connection.cursor()
+    #Query The Database
+    
+    
+    c.execute(f"""
+        SELECT*
+        FROM rooms
+        WHERE (hotel_id,type_id) = ('{hotelID}','{typeID}')
+        """)
+    data = c.fetchall()
+    
+    #Commit our command
+    db_connection.commit()
+    #Close our connection
+    db_connection.close()
+    return data
+
+def formatdate(date2):
+    from datetime import date
+    yymmddhhmmss = date2.split(" ")
+    date2 = yymmddhhmmss[0]
+    yymmdd = date2.split("-")
+    yy = int(yymmdd[0])
+    mm = int(yymmdd[1])
+    dd = int(yymmdd[2])
+    d = date(yy,mm,dd)
+    return d
+
+def getUserTotalCost(userCheckin,userCheckout,data):
+    checkinDate = formatdate(userCheckin)
+    checkoutDate = formatdate(userCheckout)
+    totalDays = (checkoutDate - checkinDate).days
+    pricePerDay = data[0][3]
+    totalCost = totalDays * pricePerDay
+    return totalCost
+
+
+def displayHotel(roomKey,hotelname,roomNumber,userRoomType,roomDes,userCheckin,userCheckout,userTotalCost,roomImage):
     '''
-        Hotel Details
+        Hotel Detailing Receipt
+    Hotel Name
+    Room number
+    Room Reference
     Description
-    Room Reference with price (eg. Delux: 350$)
-    Image
+    Check-in Date
+    Check-out Date
+    Total Cost
+    [Image]
     '''
-
-    title = sg.Text('Hotel Details', font='* 12 bold')
+    title = sg.Text("Hotel Detailing Receipt", font='* 12 bold')
     submit = sg.Button('Submit', font='* 12 bold')
 
-    error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
+    cwd  = os.getcwd() # Current Working Directory
+    roomImage = cwd + roomImage
 
-    extensions_allowed = (('IMAGE files', '*.png *.jpg *.jpeg'),
-                          ('ALL files', '*.*'))
+
     layout = [
         [sg.Column([[title]], justification='center')],
-        [sg.Text(hotelname, size = (12,1))],
-        [sg.Text(des, size = (55,1))],
-        [sg.Text(STprice, size = (12,1))],
-        [sg.Text(DEprice, size = (12,1))],
-        [sg.Text(SUprice, size = (12,1))],
-        [sg.Image(filename = img)],
+        [sg.Text("Hotel Name:\t", font='* 10 bold'), sg.Text(hotelname)],
+        [sg.Text("Room Number:\t", font='* 10 bold'), sg.Text(roomNumber)],
+        [sg.Text("Room Reference:\t", font='* 10 bold'), sg.Text(userRoomType)],
+        [sg.Text("Description:\t", font='* 10 bold'), sg.Multiline(roomDes,size = (60,5))],
+        [sg.Text("Check-in Date:\t", font='* 10 bold'), sg.Text(userCheckin)],        
+        [sg.Text("Check-out Date:\t", font='* 10 bold'), sg.Text(userCheckout)], 
+        [sg.Text("Total Cost:\t", font='* 10 bold'), sg.Text(userTotalCost + "$")],   
+        [sg.Image(filename = roomImage)]
     ]
 
     window = sg.Window(TITLE, layout)
-
     while True:  # Event Loop
         event, values = window.read()     
-
         if event == sg.WIN_CLOSED:
             break
+    
+
     window.close()
+    
 
-
-def roomType(hotelname,id):
+def roomType(hotelname,hotelID):
     '''
         Booking Form
-    Room Reference: [BUTTON:STANDARD] [BUTTON:DELUXE] [BUTTON:SUITE]
+    Room Reference: [BUTTON:STANDARD] [BUTTON:SUPERIOR] [BUTTON:DELUXE] [BUTTON:SUITE] [BUTTON:PREMIER]
     Check-in Date: [CHECKIN]
     Check-out Date: [CHECKOUT]
     '''
@@ -250,25 +495,17 @@ def roomType(hotelname,id):
     if not db_connection:
         raise Exception('Cannot connect to database')
 
-    
-    #Createacursor
     c=db_connection.cursor()
-    #Query The Database
-
-    c.execute(f"""
-        SELECT name
-        FROM room_types 
-        WHERE hotel_id = '{id}'"""
-        )
     
+    c.execute(f"""
+        SELECT type_id
+        FROM rooms
+        WHERE hotel_id = '{hotelID}'"""
+        ) 
     roomTypes=c.fetchall()
-    strRoom = ""
-    for room in roomTypes:
-        strRoom += room[0] + "\t\t"  
     #Commit our command
     db_connection.commit()
-    #Close our connection
-    db_connection.close()
+    
 
 
     title = sg.Text(hotelname, font='* 12 bold')
@@ -278,8 +515,14 @@ def roomType(hotelname,id):
 
     layout = [
         [sg.Column([[title]], justification='center')],
-        [sg.Text("\t\t"+ strRoom)],
-        [sg.Text("Type of Room", size=(12,1)),sg.Input(key='-TYPE-')],
+        [sg.Text('Room Reference', size=(12, 1)), 
+                                sg.Radio('Standard', 'group 1', key=1), 
+                                sg.Radio('Superior', 'group 1',key=2), 
+                                sg.Radio('Deluxe', 'group 1',key=3),
+                                sg.Radio('Suite', 'group 1',key=4),
+                                sg.Radio('Premier', 'group 1',key=5)],
+        [sg.CalendarButton("Check-in Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKIN-', size=(45,1)) ],
+        [sg.CalendarButton("Check-out Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKOUT-', size=(45,1)) ],
         [sg.Column([[submit]], justification='center')],
         [collapse(error, 'sec_error', visible=False)]   
        
@@ -287,48 +530,36 @@ def roomType(hotelname,id):
 
     window = sg.Window(TITLE, layout)
     
-    userRoomType = values['-TYPE-']
+
+    
     while True:  # Event Loop
         event, values = window.read()     
-
-        if event == sg.WIN_CLOSED or event == 'Submit':
-            displayHotel()
+        if event == sg.WIN_CLOSED:
             break
-      
-    window.close()
+        elif event == 'Submit':
+            #Get user's room type ID
+            userType = userTypeID(values)       
+            #Get user's type name            
+            userRoomType = getRoomRef(userType,db_connection)
 
-
-
-def testSQL():
-    id = 2
-    hotelname = "Melia Vinpearl Hue"
-    # connect to database
-    db_connection = db.create_connection(DB_PATH)
-    
-    if not db_connection:
-        raise Exception('Cannot connect to database')
-
-    
-    #Createacursor
-    c=db_connection.cursor()
-    #Query The Database
-
-    c.execute(f"""
-        SELECT name
-        FROM room_types 
-        WHERE hotel_id = '{id}'"""
-        )
-    
-    roomTypes=c.fetchall()
-    strRoom = ""
-    for room in roomTypes:
-        strRoom += room[0] + "\t\t"  
-    
-    print (strRoom) 
-    #Commit our command
-    db_connection.commit()
+            if (userTypeID == 0): sg.Popup("Something wrong with user's type ID.")
+            if (checkAvailableType(userType,roomTypes)):
+                data = dataRoom(userType,hotelID)
+                roomKey = str(data[0][0])
+                roomNumber = str(data[0][1])
+                userRoomType = str(userRoomType)
+                roomDes = str(data[0][2])
+                userCheckin = str(values['-CHECKIN-'])
+                userCheckout = str(values['-CHECKOUT-'])
+                userTotalCost = str(getUserTotalCost(userCheckin,userCheckout,data))
+                roomImage = str(data[0][7])
+                displayHotel(roomKey,hotelname,roomNumber,userRoomType,roomDes,userCheckin,userCheckout,userTotalCost,roomImage)
+            else: sg.Popup(userRoomType, "is not available. Please select other type of room!", title = TITLE)
+   
     #Close our connection
     db_connection.close()
+   
+    window.close()
 
 
 
@@ -340,7 +571,6 @@ def booking(sock):
     Check-in Date: [CHECKIN]
     Check-out Date: [CHECKOUT]
     '''
-   #data = jsonDatabase()
     title = sg.Text('Booking Form', font='* 12 bold')
     submit = sg.Button('Submit', font='* 12 bold')
 
@@ -367,7 +597,7 @@ def booking(sock):
             flg = 0 # 0: Not found, 2: Not available, 1: Passed
             
             hotelname = values['-HOTELNAME-']
-            id = values['-ID-']   
+            id = values['-ID-']
             if(checkHotelName(hotelname,id)):
                 roomType(hotelname,id)
             else: sg.Popup(hotelname, 'not found. Please try again')          
@@ -375,9 +605,7 @@ def booking(sock):
     window.close()
 
 
-
-
-   
+    
 
 
 def connect_server(host, port):
@@ -407,11 +635,12 @@ def connect_server(host, port):
         print(received_packet.decode('utf-8'))
 
     # start
-    # login_window(sock)
-    #image_window(sock)
+    global username
+    
     booking(sock)
-    #searching(sock)
-    #testSQL()
+    # cur_window = welcome_window()
+    # while(cur_window):
+    #     cur_window,username = cur_window(sock)
    
 
 
