@@ -160,7 +160,7 @@ def list_hotels_menu(sock):
         [LIST]
     '''
 
-    WIN_SIZE = (420, 400)
+    WIN_SIZE = (420, 330)
 
     # default layout when there is not hotel
     default_col = [
@@ -202,6 +202,7 @@ def list_hotels_menu(sock):
 
         all_listbox = [sg.Listbox(data[i], size=(COL_WIDTHS[i], ROWS), pad=PADDING,
                                   no_scrollbar=True, enable_events=True, key=f'listbox {i}',
+                                  font=('Lucida Console', 12),
                                   select_mode=sg.LISTBOX_SELECT_MODE_SINGLE) for i in range(COLS)]
 
         title = [sg.Text('List of Hotels', font='* 14 bold')]
