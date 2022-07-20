@@ -37,7 +37,7 @@ def align(layout, mode='both'):
         ]
 
 
-def collapse(layout, key, visible):
+def collapse(layout, key, visible, alignment=None):
     '''
     Helper function that creates a Column that can be later made hidden, thus appearing "collapsed"
     :param layout: The layout for the section
@@ -47,7 +47,7 @@ def collapse(layout, key, visible):
     :rtype: sg.pin
     '''
 
-    return sg.pin(sg.Column(layout, key=key, visible=visible, pad=(0, 0)))
+    return sg.pin(sg.Column(layout, key=key, visible=visible, pad=(0, 0), element_justification=alignment))
 
 
 def popup_window(text, button='OK'):
@@ -61,7 +61,7 @@ def popup_window(text, button='OK'):
         [sg.Column([[sg.Button(button)]], justification='center')]
     ]
 
-    window = sg.Window(TITLE, layout, keep_on_top=True)
+    window = sg.Window(TITLE, layout, keep_on_top=True, modal=True)
 
     while True:
         event, values = window.read()
@@ -73,85 +73,169 @@ def popup_window(text, button='OK'):
     window.close()
 
 
-def image_window(sock):
+def details_window(bin_image, description):
     '''
-    Path [INPUT:PATH] [BUTTON:BROWSE]
-        [IMAGE]
-    [ERROR]
-    [BUTTON:SUBMIT] [BUTTON:CLOSE]
-
+    [IMAGE] | [DESCRIPTION]
     '''
-    extensions_allowed = (('IMAGE files', '*.png *.jpg *.jpeg'),
-                          ('ALL files', '*.*'))
 
-    image = sg.Image(key='-IMG-')
-    image_center = [[sg.Column([[image]], justification='center')]]
-
-    error = [[sg.Text(font='_ 9 italic', key='-ERROR-')]]
+    image = [[sg.Image(bin_image)]]
+    des = [[sg.Text(description, key='-DESCRIPTION-')]]
 
     layout = [
-        [sg.Text('Path:'), sg.In(key='-BROWSE-', enable_events=True), sg.FileBrowse(file_types=extensions_allowed)],
-        [collapse(image_center, key='sec_img', visible=False)],
-        [collapse(error, key='sec_error', visible=False)],
-        [sg.Button('Submit'), sg.Button('Close')]]
+        [sg.Column(image), sg.VSeparator(), sg.Column(des)],
+        [sg.Button('Close')]
+    ]
 
-    window = sg.Window(TITLE, layout)
+    window = sg.Window(TITLE, layout, element_justification='center', modal=True, finalize=True)
 
-    toggle_sec_error = toggle_sec_img = file_error = False
-
-    img = bin_img = resized_bin_img = None
+    window['-DESCRIPTION-'].Widget.configure(wrap=400)
 
     while True:
+        event = window.read()[0]
+
+        if event == sg.WINDOW_CLOSED or event == 'Close':
+            break
+
+    window.close()
+
+
+def search_menu(sock):
+    '''
+        SEARCH
+    HOTEL NAME/ID:  [INPUT:HOTEL_NAME/HOTEL_ID]
+    CHECK-IN DATE:  [INPUT:CHECK_IN_DATE]
+    CHECK-OUT DATE: [INPUT:CHECK_OUT_DATE]
+        [BUTTON:SUBMIT]
+
+    [ROOM TYPE] [ROOMS LEFT] [PRICE]
+    [              DATA            ] 
+        [BUTTON:DETAILS] 
+    '''
+
+    # date picker (calendar)
+    check_in_col, check_out_col = [[
+        [sg.Multiline(size=(11, 1), key=f'-DATE_{name.upper()}-', no_scrollbar=True, disabled=True)],
+        [sg.CalendarButton(f'Check-{name}', target=f'-DATE_{name.upper()}-', format='%Y-%m-%d', size=(9, 1))]
+    ] for name in ('in', 'out')]
+
+    # add a place holder line
+    room_types = (('place holder', 0, 0))
+
+    COLS = 3
+    COL_WIDTHS = (30, 10, 10)
+    PADDING = (4, 2)
+
+    # use listbox for displaying room types
+    all_listbox = [sg.Listbox(room_types, size=(COL_WIDTHS[i], 1), pad=PADDING,
+                              no_scrollbar=True, enable_events=True, key=f'listbox {i}',
+                              font=('Lucida Console', 12), select_mode=sg.LISTBOX_SELECT_MODE_SINGLE)
+                   for i in range(COLS)]
+
+    # layout for the result
+    result = [
+        [sg.HorizontalSeparator()],
+        [blank_line()],
+        [sg.Text('Room type'.center(COL_WIDTHS[0]), pad=PADDING),
+         sg.Text('Rooms left'.center(COL_WIDTHS[1]), pad=PADDING),
+         sg.Text('Price'.center(COL_WIDTHS[2]), pad=PADDING)],
+        [sg.Column([all_listbox], pad=PADDING)],
+        [blank_line()],
+        [sg.Button('Details')]
+    ]
+
+    # layout for the input form
+    form = [
+        [blank_line()],
+        [sg.Text('Hotel name or Hotel ID')],
+        [sg.Input(key='-HOTEL-', size=(40, None))],
+        [sg.Column(check_in_col), sg.Column(check_out_col)],
+        [blank_line()],
+    ]
+
+    title = [[sg.Text(f"{'SEARCH':^95}", font='* 14 bold')]]
+
+    # master layout
+    layout = [
+        [sg.Column(title, justification='center')],
+        [sg.Frame(None, form, element_justification='center')],
+        [blank_line()],
+        [sg.Button('Submit'), sg.Button('Back')],
+        [blank_line()],
+        [collapse(result, 'sec_result', visible=False, alignment='center')],
+    ]
+
+    window = sg.Window(TITLE, layout, finalize=True, element_justification='center')
+
+    # align column in result listbox
+    window[f'listbox 0'].Widget.configure(justify='center', activestyle='none')
+    window[f'listbox 1'].Widget.configure(justify='center', activestyle='none')
+    window[f'listbox 2'].Widget.configure(justify='right', activestyle='none')
+
+    while True:  # event loop
         event, values = window.read()
 
-        # when user press close button
-        if event == sg.WIN_CLOSED or event == 'Close':
-            break
-        # When user press browse button
-        elif (event == '-BROWSE-'):
+        if event == sg.WINDOW_CLOSED:  # when user closes window
+            window.close()
+            return None
+        elif event == 'Back':  # when user presses back button
+            window.close()
+            return main_menu
+        elif event == 'Submit':  # when user presses submit button
+            start_date = values['-DATE_IN-']
+            end_date = values['-DATE_OUT-']
+            hotel = values['-HOTEL-']
+
+            # validate date range
+            if time.strptime(start_date, '%Y-%m-%d') >= time.strptime(end_date, '%Y-%m-%d'):
+                window['sec_result'].update(visible=False)
+                popup_window('Invalid dates')
+                continue
+
+            # send request to server to get info needed
+            search_request = Packet('search', {'hotel': hotel,
+                                               'start_date': start_date,
+                                               'end_date': end_date})
+            send(sock, pickle.dumps(search_request))
+
+            received_packet = receive(sock)
+
+            # if connection is terminated
+            if not received_packet:
+                print('cannot connect to server')
+                continue
+
+            response = pickle.loads(received_packet)
+
+            # if there is no such hotel
+            if response.header == 'fail':
+                window['sec_result'].update(visible=False)
+                popup_window('There is no such hotel')
+                continue
+
+            # response contains id, name, description, price, rooms left, and binary image
+            room_types = response.content
+
+            # append name and rooms left into 2 separate columns
+            data = [[val[i] for val in room_types] for i in (1, 4)]
+            # append 1 more column for price
+            data.append([f'{int(val[3]):,}' for val in room_types])
+
+            window['sec_result'].update(visible=True)
+
+            for i in range(COLS):
+                window[f'listbox {i}'].update(data[i])
+                window[f'listbox {i}'].Widget.configure(height=len(room_types))
+
+        elif event.startswith('listbox'):  # highlight line when user selects line
+            row = window[event].get_indexes()[0]
+            for i in range(COLS):
+                window[f'listbox {i}'].update(set_to_index=row)
+        elif event == 'Details':  # when user pressed Details button
             try:
-                # try to open file in binary stream (for sending), & resized version also in binary
-                # stream (for displaying)
-                path = values['-BROWSE-']
-
-                img = Image.open(path)
-                bin_img = img_to_bin(img)
-                resized_bin_img = img_to_bin(img, DEFAULT_IMG_SIZE)
-                img.close()
-
-                # display preview image and hide previous error line
-                toggle_sec_img = True
-                window['-IMG-'].update(data=resized_bin_img)
-                window['sec_img'].update(visible=toggle_sec_img)
-
-                file_error = toggle_sec_error = False
-                window['sec_error'].update(visible=toggle_sec_error)
-            except:
-                # hide preview image and display error line
-                toggle_sec_img = False
-                window['sec_img'].update(visible=toggle_sec_img)
-
-                file_error = toggle_sec_error = True
-                window['-ERROR-'].update('Cannot open the file')
-                window['sec_error'].update(visible=toggle_sec_error)
-
-        elif (event == 'Submit'):
-            try:
-                # if user still has not selected a valid image, skip
-                if file_error:
-                    continue
-
-                # send file to server
-                send(sock, bin_img)
-                print(f'{path} is sent')
-                file_error = False
-            except Exception as e:
-                # show error about connection
-                toggle_sec_error = True
-                window['-ERROR-'].update('Cannot connect to server')
-                window['sec_error'].update(visible=toggle_sec_error)
-
-                print(e)
+                idx = window['listbox 0'].get_indexes()[0]
+                details_window(room_types[idx][5], room_types[idx][2])
+            except:  # this happens when user has not select any line
+                pass
 
 
 def list_hotels_menu(sock):
@@ -160,35 +244,20 @@ def list_hotels_menu(sock):
         [LIST]
     '''
 
-    WIN_SIZE = (420, 330)
-
-    # default layout when there is not hotel
-    default_col = [
-        [sg.Text('List of Hotels', font='* 14 bold')],
-        [sg.Text('No hotel available')]
-    ]
-
-    layout = [
-        [sg.Push(), sg.Column(default_col, element_justification='center'), sg.Push()]
-    ]
-
-    window = sg.Window(TITLE, layout, size=WIN_SIZE)
+    WIN_SIZE = (420, 350)
 
     # send request to get the list of hotels
     list_hotels_request = Packet('list: hotels')
     send(sock, pickle.dumps(list_hotels_request))
 
-    # receive list of hotels
     received_packet = receive(sock)
 
     # if connection is terminated
-    if not received_packet:
-        pass
-
-    response = pickle.loads(received_packet)
-
-    hotels = response.content
-    print(hotels)
+    if received_packet:
+        response = pickle.loads(received_packet)
+        hotels = response.content
+    else:
+        hotels = None
 
     # if there are hotels available, change layout
     if hotels:
@@ -202,13 +271,14 @@ def list_hotels_menu(sock):
 
         all_listbox = [sg.Listbox(data[i], size=(COL_WIDTHS[i], ROWS), pad=PADDING,
                                   no_scrollbar=True, enable_events=True, key=f'listbox {i}',
-                                  font=('Lucida Console', 12),
-                                  select_mode=sg.LISTBOX_SELECT_MODE_SINGLE) for i in range(COLS)]
+                                  font=('Lucida Console', 12), select_mode=sg.LISTBOX_SELECT_MODE_SINGLE)
+                       for i in range(COLS)]
 
-        title = [sg.Text('List of Hotels', font='* 14 bold')]
+        title = [sg.Text('LIST OF HOTELS', font='* 14 bold')]
 
         layout = [
             [sg.Column([title], pad=PADDING, justification='center')],
+            [blank_line()],
             [sg.Text('Id'.center(COL_WIDTHS[0]), pad=PADDING), sg.Text('Name'.center(COL_WIDTHS[1]), pad=PADDING)],
             [sg.Column([all_listbox], size=(None, min(ROWS_SHOW, ROWS) * 20), pad=PADDING, scrollable=True,
                        vertical_scroll_only=True)],
@@ -220,13 +290,24 @@ def list_hotels_menu(sock):
 
         # align content of list to center & remove underline in listbox
         for i in range(COLS):
-            listbox = window[f'listbox {i}'].Widget
-            listbox.configure(justify='center', activestyle='none')
+            window[f'listbox {i}'].Widget.configure(justify='center', activestyle='none')
+    else:  # default layout when there is not hotel
+        default_col = [
+            [sg.Text('List of Hotels', font='* 14 bold')],
+            [sg.Text('No hotel available')]
+        ]
 
-    while True:
+        layout = [
+            [sg.Push(), sg.Column(default_col, element_justification='center'), sg.Push()]
+        ]
+
+        window = sg.Window(TITLE, layout, size=WIN_SIZE)
+
+    while True:  # event loop
         event = window.read()[0]
-        if event == sg.WINDOW_CLOSED:  # , if user closes window
-            break
+        if event == sg.WINDOW_CLOSED:  # if user closes window
+            window.close()
+            return None
         elif event == 'Back':
             window.close()
             return main_menu
@@ -235,14 +316,12 @@ def list_hotels_menu(sock):
             for i in range(COLS):
                 window[f'listbox {i}'].update(set_to_index=row)
 
-    window.close()
-
 
 def main_menu(sock=None):
     SIZE = (20, 1)
 
     col = [
-        [sg.Text('Main menu', font='* 14 bold')],
+        [sg.Text('MAIN MENU', font='* 14 bold')],
         [blank_line()],
         [sg.Button('List of hotels', size=SIZE)],
         [sg.Button('Your reservations', size=SIZE)],
@@ -271,7 +350,8 @@ def main_menu(sock=None):
     elif event == 'Your reservations':
         pass
     elif event == 'Search':
-        pass
+        window.close()
+        return search_menu
 
 
 def register_window(sock):
@@ -286,7 +366,7 @@ def register_window(sock):
 
     WIN_SIZE = (420, 220)
 
-    title = [sg.Text('Register', font='* 14 bold')]
+    title = [sg.Text('REGISTER', font='* 14 bold')]
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
     layout = [
@@ -364,8 +444,8 @@ def register_window(sock):
 
                 # close register window if successful
                 if response.header == 'success':
+                    popup_window('Register successful')
                     window.close()
-                    popup_window('Login successful')
                     return main_menu
                 else:
                     toggle_sec_error = True
@@ -391,7 +471,7 @@ def login_window(sock):
     WIN_SIZE = (420, 190)
     BUTTON_SIZE = (5, 1)
 
-    title = [sg.Text('Login', font='* 14 bold')]
+    title = [sg.Text('LOGIN', font='* 14 bold')]
     error = [[sg.Text(font='_ 9 italic', text_color='yellow', key='-ERROR-')]]
 
     layout = [
@@ -449,8 +529,8 @@ def login_window(sock):
 
                 # close login window if successful
                 if response.header == 'success':
-                    window.close()
                     popup_window('Login successful')
+                    window.close()
                     return main_menu
                 else:
                     toggle_sec_error = True
@@ -473,13 +553,14 @@ def welcome_window(sock=None):
     WIN_SIZE = (420, 190)
     BUTTON_SIZE = (8, 1)
 
-    title = [sg.Text('Welcome', font='* 14 bold')]
+    title = [sg.Text('WELCOME', font='* 14 bold')]
 
     layout = [
         [sg.Column([title], justification='center')],
         [blank_line()],
         [sg.Button('Login', size=BUTTON_SIZE)],
-        [sg.Button('Register', size=BUTTON_SIZE)]
+        [sg.Button('Register', size=BUTTON_SIZE)],
+        [blank_line()]
     ]
 
     window = sg.Window(TITLE, align(layout), size=WIN_SIZE)
@@ -525,9 +606,12 @@ def connect_server(host, port):
         print(received_packet.decode('utf-8'))
 
     # start
-    cur_window = welcome_window()
-    while(cur_window):
-        cur_window = cur_window(sock)
+    try:
+        cur_window = welcome_window()
+        while(cur_window):
+            cur_window = cur_window(sock)
+    except socket.error as e:
+        print(e)
 
 
 # start

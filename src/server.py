@@ -7,6 +7,11 @@ from threading import Thread
 from functions import *
 import database as db
 
+# global vars
+MAX_CLIENTS = 5
+DB_PATH = 'data/db.sqlite'
+DEFAULT_IMG_SIZE = 400
+
 
 def handle_client_img(client_socket, address):
     send(client_socket, 'Successfully connected to server'.encode())
@@ -25,6 +30,62 @@ def handle_client_img(client_socket, address):
 
     client_socket.close()
     print(f'{address} disconnected')
+
+
+def handle_search(client_socket, address, request):
+    # request contains start_date and end_date
+    hotel, start_date, end_date = (request.get(key) for key in ('hotel', 'start_date', 'end_date'))
+
+    # connect to database
+    db_connection = db.create_connection(DB_PATH)
+
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    # create query to get list of hotels
+    get_query = f"""
+    SELECT
+        room_types.id,
+        room_types.name,
+        room_types.description,
+        room_types.price,
+        (room_types.total_rooms -
+        SUM(CASE
+                WHEN start_date BETWEEN date('{start_date}') AND date('{end_date}', '-1 day')
+                OR end_date BETWEEN date('{start_date}', '+1 day') AND date('{end_date}')
+                THEN number_rooms
+                ELSE 0
+            END)
+        ) as rooms_left,
+        room_types.image
+    FROM room_types
+    LEFT JOIN reserved_rooms ON reserved_rooms.room_type_id = room_types.id
+    INNER JOIN hotels ON hotels.id = room_types.hotel_id
+    WHERE room_types.hotel_id = '{hotel}'
+    OR hotels.name = '{hotel}' COLLATE NOCASE
+    GROUP BY room_types.id
+    """
+
+    room_types = [list(tup) for tup in db.execute_query(db_connection, get_query, True)]
+
+    # when server respond nothing
+    if not room_types:
+        send(client_socket, pickle.dumps(Packet('fail')))
+        print(f'{address} : hotel not found')
+        return
+
+    for room_type in room_types:
+        # open file in binary stream & resize it before sending
+        image_path = room_type[5]
+        img = Image.open(image_path)
+        bin_img = img_to_bin(img)
+        resized_bin_img = img_to_bin(img, DEFAULT_IMG_SIZE)
+        img.close()
+
+        room_type[5] = resized_bin_img
+
+    send(client_socket, pickle.dumps(Packet('success', room_types)))
+    print(f'{address} : search successful')
 
 
 def handle_list_hotels(client_socket, address, request=None):
@@ -123,7 +184,8 @@ def handle_client_login(client_socket, address, content):
 
 VALID_REQUESTS = {'login': handle_client_login,
                   'register': handle_client_register,
-                  'list: hotels': handle_list_hotels}
+                  'list: hotels': handle_list_hotels,
+                  'search': handle_search}
 
 
 def handle_client(client_socket, address):
@@ -211,8 +273,6 @@ def start_server(host, port):
 # start
 HOST = ''
 PORT = 2808
-MAX_CLIENTS = 5
-DB_PATH = 'data/db.sqlite'
 
 server_socket = start_server(HOST, PORT)
 
