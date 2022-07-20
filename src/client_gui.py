@@ -1,3 +1,4 @@
+from this import d
 from turtle import update
 import PySimpleGUI as sg
 import socket
@@ -12,7 +13,8 @@ from functions import *
 #dev_phuc library
 import database as db
 import io,os
-import textwrap
+from datetime import date
+
 
 sg.theme('Dark Grey 9')
 TITLE = 'E-Booking'
@@ -364,82 +366,34 @@ def checkHotelName(hotelname,id):
     else: return 0
 
 
-def checkInputRoom(userRoom,roomTypes):
-    for room in roomTypes:
-        if(userRoom == room[0]):
-            return 1
-    
-    return 0
-
-
-def getRoomRef(typeID,db_connection):
-    c=db_connection.cursor()
-    c.execute(f"""
-        SELECT type_name
-        FROM room_type
-        WHERE id = ('{typeID}')"""
-        )
-    type_name = c.fetchall()[0][0]
-    return type_name
-    
-def checkAvailableType(userType,roomTypes):
-    for typeID in roomTypes:
-        if (typeID[0] == userType):
-            return 1
-    
-    return 0
-
-def userTypeID(values):
-    for index in range(1,6):
-        if values[index] == True:
-            return index    
-    return 0
-
-def dataRoom(typeID,hotelID):
-# connect to database
-    db_connection = db.create_connection(DB_PATH)
-    
-    if not db_connection:
-        raise Exception('Cannot connect to database')
-
-    
-    #Createacursor
-    c=db_connection.cursor()
-    #Query The Database
-    
-    
-    c.execute(f"""
-        SELECT*
-        FROM rooms
-        WHERE (hotel_id,type_id) = ('{hotelID}','{typeID}')
-        """)
-    data = c.fetchall()
-    
-    #Commit our command
-    db_connection.commit()
-    #Close our connection
-    db_connection.close()
-    return data
-
-def formatdate(date2):
-    from datetime import date
+def convertTimeFormate(date2):
     yymmddhhmmss = date2.split(" ")
     date2 = yymmddhhmmss[0]
+    return date2
+
+def formatdate(date2):
+    date2 = convertTimeFormate(date2)
     yymmdd = date2.split("-")
     yy = int(yymmdd[0])
     mm = int(yymmdd[1])
     dd = int(yymmdd[2])
-    d = date(yy,mm,dd)
-    return d
+    days = date(yy,mm,dd)
+    return days
 
-def getUserTotalCost(userCheckin,userCheckout,data):
+def getUserTotalCost(userCheckin,userCheckout,data,rooms):
     checkinDate = formatdate(userCheckin)
     checkoutDate = formatdate(userCheckout)
     totalDays = (checkoutDate - checkinDate).days
-    pricePerDay = data[0][3]
-    totalCost = totalDays * pricePerDay
+    pricePerDay = data[0][5]
+    totalCost = totalDays * int(pricePerDay) * int(rooms)
     return totalCost
 
+def convertFilePath(path):
+    path = path.replace('/','\\')
+    return path
+def convertFileFormat(path):
+    path = path.replace('jpg','png')
+    return path
 
 def displayHotel(roomKey,hotelname,roomNumber,userRoomType,roomDes,userCheckin,userCheckout,userTotalCost,roomImage):
     '''
@@ -456,14 +410,16 @@ def displayHotel(roomKey,hotelname,roomNumber,userRoomType,roomDes,userCheckin,u
     title = sg.Text("Hotel Detailing Receipt", font='* 12 bold')
     submit = sg.Button('Submit', font='* 12 bold')
 
-    cwd  = os.getcwd() # Current Working Directory
-    roomImage = cwd + roomImage
+    cwd  = os.getcwd() + '\\' # Current Working Directory
+    roomImage = convertFilePath(roomImage)
+    roomImage = convertFileFormat(roomImage)
+    roomImage = cwd + roomImage  
 
 
     layout = [
         [sg.Column([[title]], justification='center')],
         [sg.Text("Hotel Name:\t", font='* 10 bold'), sg.Text(hotelname)],
-        [sg.Text("Room Number:\t", font='* 10 bold'), sg.Text(roomNumber)],
+        [sg.Text("Number of Rooms:", font='* 10 bold'), sg.Text(roomNumber)],
         [sg.Text("Room Reference:\t", font='* 10 bold'), sg.Text(userRoomType)],
         [sg.Text("Description:\t", font='* 10 bold'), sg.Multiline(roomDes,size = (60,5))],
         [sg.Text("Check-in Date:\t", font='* 10 bold'), sg.Text(userCheckin)],        
@@ -476,11 +432,78 @@ def displayHotel(roomKey,hotelname,roomNumber,userRoomType,roomDes,userCheckin,u
     while True:  # Event Loop
         event, values = window.read()     
         if event == sg.WIN_CLOSED:
-            break
-    
+            break   
+                   
 
     window.close()
     
+def getRoomType(room_types):
+    listRoomType = []
+    for type in room_types:
+        listRoomType.append(type[2])
+    return (listRoomType)
+    
+def getDataRoomType(hotelID,roomType,c):
+    c.execute(f"""
+        SELECT *
+        FROM room_types
+        WHERE (hotel_id,name) = ('{hotelID}','{roomType}')
+        """)
+    data_room_type = c.fetchall()
+    #print(data_room_type[0][3])
+    return data_room_type
+
+def getReservationID():
+     # connect to database
+    db_connection = db.create_connection(DB_PATH)
+    
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    c=db_connection.cursor()
+    
+    c.execute(f"""
+        SELECT id
+        FROM reservations
+        WHERE username = '{username}'
+        """) 
+    id = c.fetchall()[0][0]
+    
+    db_connection.commit()  
+    db_connection.close()
+    return id
+   
+    
+    
+def updateValuesSQL(room_type_id,roomNumber,userTotalCost,userCheckin,userCheckout):    
+     # connect to database
+    db_connection = db.create_connection(DB_PATH)
+    
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    c=db_connection.cursor()
+       
+    #Insert values of reservations table    
+    c.execute(f"""
+        INSERT INTO reservations (time,username)
+        VALUES (CURRENT_TIMESTAMP,'{username}')
+        """) 
+    db_connection.commit()
+    #Insert values of reserved_rooms table   
+    reservation_id = getReservationID()
+    userCheckin = str(convertTimeFormate(userCheckin))
+    userCheckout = str(convertTimeFormate(userCheckout))
+    c.execute(f"""
+        INSERT INTO reserved_rooms (room_type_id,reservation_id,number_rooms,price,start_date,end_date)
+        VALUES ('{room_type_id}','{reservation_id}','{roomNumber}','{userTotalCost}','{userCheckin}','{userCheckout}')
+        """) 
+    db_connection.commit()  
+
+    db_connection.close()
+    
+
+
 
 def roomType(hotelname,hotelID):
     '''
@@ -498,14 +521,15 @@ def roomType(hotelname,hotelID):
     c=db_connection.cursor()
     
     c.execute(f"""
-        SELECT type_id
-        FROM rooms
+        SELECT *
+        FROM room_types
         WHERE hotel_id = '{hotelID}'"""
         ) 
-    roomTypes=c.fetchall()
+    room_types=c.fetchall()
     #Commit our command
     db_connection.commit()
     
+    listRoomtype = getRoomType(room_types)
 
 
     title = sg.Text(hotelname, font='* 12 bold')
@@ -515,14 +539,10 @@ def roomType(hotelname,hotelID):
 
     layout = [
         [sg.Column([[title]], justification='center')],
-        [sg.Text('Room Reference', size=(12, 1)), 
-                                sg.Radio('Standard', 'group 1', key=1), 
-                                sg.Radio('Superior', 'group 1',key=2), 
-                                sg.Radio('Deluxe', 'group 1',key=3),
-                                sg.Radio('Suite', 'group 1',key=4),
-                                sg.Radio('Premier', 'group 1',key=5)],
-        [sg.CalendarButton("Check-in Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKIN-', size=(45,1)) ],
-        [sg.CalendarButton("Check-out Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKOUT-', size=(45,1)) ],
+        [sg.Text('Room Reference'), sg.Combo(listRoomtype,key='-TYPE-')],
+        [sg.Text('Number of Room'), sg.Input(key='-ROOMS-')],
+        [sg.CalendarButton("Check-in Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKIN-') ],
+        [sg.CalendarButton("Check-out Date", close_when_date_chosen=True, location= (280,350), no_titlebar=False, size =(12,1) ),sg.Input(key='-CHECKOUT-') ],
         [sg.Column([[submit]], justification='center')],
         [collapse(error, 'sec_error', visible=False)]   
        
@@ -537,25 +557,28 @@ def roomType(hotelname,hotelID):
         if event == sg.WIN_CLOSED:
             break
         elif event == 'Submit':
-            #Get user's room type ID
-            userType = userTypeID(values)       
-            #Get user's type name            
-            userRoomType = getRoomRef(userType,db_connection)
+            roomType = values['-TYPE-']
+            roomNumber = values['-ROOMS-'] 
+            data_room_type = getDataRoomType(hotelID,roomType,c)        
+            roomAva = data_room_type[0][3]  
+            if (int(roomNumber) > int(roomAva)):
+                sg.Popup(roomType + " has only " + str(roomAva) + " rooms.",title=TITLE)
+                continue          
+            
+            
+            data = data_room_type
+            roomKey = str(data[0][0])
+            userRoomType = roomType
+            roomDes = str(data[0][4])
+            userCheckin = str(values['-CHECKIN-'])
+            userCheckout = str(values['-CHECKOUT-'])
+            userTotalCost = str(getUserTotalCost(userCheckin,userCheckout,data,roomNumber))
+            roomImage = str(data[0][6])
 
-            if (userTypeID == 0): sg.Popup("Something wrong with user's type ID.")
-            if (checkAvailableType(userType,roomTypes)):
-                data = dataRoom(userType,hotelID)
-                roomKey = str(data[0][0])
-                roomNumber = str(data[0][1])
-                userRoomType = str(userRoomType)
-                roomDes = str(data[0][2])
-                userCheckin = str(values['-CHECKIN-'])
-                userCheckout = str(values['-CHECKOUT-'])
-                userTotalCost = str(getUserTotalCost(userCheckin,userCheckout,data))
-                roomImage = str(data[0][7])
-                displayHotel(roomKey,hotelname,roomNumber,userRoomType,roomDes,userCheckin,userCheckout,userTotalCost,roomImage)
-            else: sg.Popup(userRoomType, "is not available. Please select other type of room!", title = TITLE)
-   
+
+            updateValuesSQL(roomKey,roomNumber,userTotalCost,userCheckin,userCheckout)           
+            displayHotel(roomKey,hotelname,roomNumber,userRoomType,roomDes,userCheckin,userCheckout,userTotalCost,roomImage)
+            
     #Close our connection
     db_connection.close()
    
@@ -605,6 +628,28 @@ def booking(sock):
     window.close()
 
 
+def testSQL(room_type_id,roomNumber,userTotalCost,userCheckin,userCheckout):
+    hotelID = 1
+    DB_PATH = 'data/dbtest.sqlite'
+    db_connection = db.create_connection(DB_PATH)
+    
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    c=db_connection.cursor()
+    getReservationID(c)
+    userCheckin = str(convertTimeFormate(userCheckin))
+    userCheckout = str(convertTimeFormate(userCheckout))
+    
+    # c.execute(f"""
+    #     INSERT INTO reserved_rooms (room_type_id,reservation_id,number_rooms,price,start_date,end_date)
+    #     VALUES ('{room_type_id}','{reservation_id}','{roomNumber}','{userTotalCost}','{userCheckin},'{userCheckout}')
+    #     """) 
+    
+    #Commit our command
+    db_connection.commit()
+    #Close Database
+    db_connection.close()
     
 
 
@@ -635,12 +680,11 @@ def connect_server(host, port):
         print(received_packet.decode('utf-8'))
 
     # start
-    global username
-    
-    booking(sock)
-    # cur_window = welcome_window()
-    # while(cur_window):
-    #     cur_window,username = cur_window(sock)
+    global username    
+
+    cur_window = welcome_window()
+    while(cur_window):
+        cur_window,username = cur_window(sock)
    
 
 
