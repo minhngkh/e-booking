@@ -15,3 +15,5 @@ def execute_query(connection, query, return_result=False):
 
     if return_result:
         return cursor.fetchall()
+    else:
+        return cursor.lastrowid
