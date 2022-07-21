@@ -803,9 +803,8 @@ def register_window(sock):
                     window.close()
                     return main_menu_window
                 else:
-                    www
                     toggle_sec_error = True
-                    error_msg = 'Username was taken'
+                    error_msg = 'Username or Card number was taken'
 
             # update the error message and display it
             window['-ERROR-'].update(error_msg)
