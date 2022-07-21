@@ -130,13 +130,15 @@ def my_reservations_window(sock):
         [sg.Text('Reservation ID:'), sg.Text(key='-RESERVATION_ID-')],
         [sg.Text('Check-in:'), sg.Text(key='-DATE_IN-')],
         [sg.Text('Check-out:'), sg.Text(key='-DATE_OUT-')],
+        [sg.Text('Notes:')],
+        [sg.Multiline(disabled=True, key='-NOTES-', size=(None, 3))],
         [blank_line()],
         [sg.Text('Room type'.center(D_COL_WIDTHS[0]), pad=D_PADDING),
          sg.Text('Price'.center(D_COL_WIDTHS[1]), pad=D_PADDING),
          sg.Text('Amount'.center(D_COL_WIDTHS[2]), pad=D_PADDING)],
         [sg.Column([all_detailbox], pad=D_PADDING)],
         [blank_line()],
-        [sg.Text('Total'), sg.Text(key='-TOTAL_PRICE-')],
+        [sg.Text('Total Price:'), sg.Text(key='-TOTAL_PRICE-')],
         [blank_line()],
         [sg.Column([[sg.Button('Cancel')]], element_justification='center')]
     ]
@@ -187,6 +189,7 @@ def my_reservations_window(sock):
             window['-RESERVATION_ID-'].update(details['reservation_id'])
             window['-DATE_IN-'].update(details['start_date'])
             window['-DATE_OUT-'].update(details['end_date'])
+            window['-NOTES-'].update(details['notes'])
 
             rooms_data = [[], [], []]
             for val in details['rooms_info']:
@@ -279,6 +282,8 @@ def reserve_window(sock):
         [sg.Text('Hotel name or ID')],
         [sg.Input(key='-HOTEL-', size=(40, None))],
         [sg.Column(col, element_justification='center') for col in check_in_out_cols],
+        [sg.Text('Notes')],
+        [sg.Multiline(autoscroll=True, do_not_clear=True, size=(50, 3), key='-NOTES-')],
         [blank_line()],
     ]
 
@@ -425,7 +430,8 @@ def reserve_window(sock):
             reserve_request = Packet('reserve', {'data': send_data,
                                                  'hotel_id': hotel_id,
                                                  'start_date': start_date,
-                                                 'end_date': end_date})
+                                                 'end_date': end_date,
+                                                 'notes': values['-NOTES-']})
             send(sock, pickle.dumps(reserve_request))
 
             received_packet = receive(sock)
@@ -829,7 +835,7 @@ def register_window(sock):
                 if response.header == 'success':
                     popup_window('Register successful')
                     window.close()
-                    return main_menu_window
+                    return welcome_window
                 else:
                     toggle_sec_error = True
                     error_msg = 'Username or Card number was taken'

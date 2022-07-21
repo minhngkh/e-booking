@@ -61,7 +61,7 @@ def handle_client_list_reservations(client_socket, address, request, username):
     # create query to get list of reservations
     get_query = f"""
     SELECT
-        id, time
+        id, time, notes
     FROM reservations
     WHERE username = '{username[0]}'
     """
@@ -71,7 +71,7 @@ def handle_client_list_reservations(client_socket, address, request, username):
     did = False
     hotel_name = start_date = end_date = None
     data = []
-    for reservation_id, date in reservations:
+    for reservation_id, date, notes in reservations:
         # create query to get list of reserved rooms
         get_query = f"""
         SELECT
@@ -100,6 +100,7 @@ def handle_client_list_reservations(client_socket, address, request, username):
                      'hotel_name': hotel_name,
                      'start_date': start_date,
                      'end_date': end_date,
+                     'notes': notes,
                      'rooms_info': [room[1:4] for room in cur_data]})
 
     send(client_socket, pickle.dumps(Packet('success', data)))
@@ -109,7 +110,8 @@ def handle_client_list_reservations(client_socket, address, request, username):
 def handle_client_reserve(client_socket, address, request, username):
     # request contains data, start_date and end_date
     # data contains list of room type id and number of rooms to be reserved
-    data, hotel_id, start_date, end_date = (request.get(key) for key in ('data', 'hotel_id', 'start_date', 'end_date'))
+    data, hotel_id, start_date, end_date, notes = (request.get(key)
+                                                   for key in ('data', 'hotel_id', 'start_date', 'end_date', 'notes'))
 
     # validate date and time:
     TIME_FORMAT = '%Y-%m-%d'
@@ -128,8 +130,8 @@ def handle_client_reserve(client_socket, address, request, username):
 
     # create query to insert reservation
     insert_query = f"""
-    INSERT INTO reservations (time, username)
-    VALUES ('{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}', '{username[0]}')
+    INSERT INTO reservations (time, username, notes)
+    VALUES ('{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}', '{username[0]}', '{notes}')
     """
 
     row_id = db.execute_query(db_connection, insert_query)
