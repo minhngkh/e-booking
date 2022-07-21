@@ -2,6 +2,7 @@ import socket
 import sys
 import pickle
 import time
+from datetime import datetime, timedelta
 
 from threading import Thread
 
@@ -12,6 +13,42 @@ import database as db
 MAX_CLIENTS = 5
 DB_PATH = 'data/db.sqlite'
 DEFAULT_IMG_SIZE = 400
+
+
+def handle_client_cancel(client_socket, address, request, username=None):
+    # connect to database
+    db_connection = db.create_connection(DB_PATH)
+
+    if not db_connection:
+        raise Exception('Cannot connect to database')
+
+    # create query to search for date
+    get_query = f"""
+    SELECT time
+    FROM reservations
+    WHERE id = '{request}'
+    """
+
+    # validate date and time:
+    created_date = db.execute_query(db_connection, get_query, True)[0][0]
+
+    TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+    cur_date = datetime.now()
+    created_date = datetime.strptime(created_date, TIME_FORMAT)
+
+    if created_date + timedelta(hours=24) < cur_date:
+        raise Exception('Cancel failed')
+
+    # create query to get list of reservations
+    del_query = f"""
+    DELETE FROM reservations
+    WHERE id = '{request}'
+    """
+
+    db.execute_query(db_connection, del_query)
+
+    send(client_socket, pickle.dumps(Packet('success')))
+    print(f'{address} : Cancel successful')
 
 
 def handle_client_list_reservations(client_socket, address, request, username):
@@ -365,7 +402,8 @@ VALID_REQUESTS = {'login': handle_client_login,
                   'search': handle_search,
                   'simple search': handle_simple_search,
                   'reserve': handle_client_reserve,
-                  'list: reservations': handle_client_list_reservations}
+                  'list: reservations': handle_client_list_reservations,
+                  'cancel': handle_client_cancel}
 
 
 def handle_client(client_socket, address):

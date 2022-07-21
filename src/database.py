@@ -5,6 +5,8 @@ def create_connection(path):
     connection = None
     connection = sqlite3.connect(path)
 
+    execute_query(connection, 'PRAGMA foreign_keys = ON')
+
     return connection
 
 

@@ -126,7 +126,7 @@ def my_reservations_window(sock):
                      for i in range(D_COLS)]
 
     detail_col = [
-        [sg.Text(key='-HOTEL-', font='* 14 bold')],
+        [sg.Column([[sg.Text(key='-HOTEL-', font='* 14 bold')]], element_justification='center')],
         [sg.Text('Reservation ID:'), sg.Text(key='-RESERVATION_ID-')],
         [sg.Text('Check-in:'), sg.Text(key='-DATE_IN-')],
         [sg.Text('Check-out:'), sg.Text(key='-DATE_OUT-')],
@@ -136,7 +136,9 @@ def my_reservations_window(sock):
          sg.Text('Amount'.center(D_COL_WIDTHS[2]), pad=D_PADDING)],
         [sg.Column([all_detailbox], pad=D_PADDING)],
         [blank_line()],
-        [sg.Text('Total'), sg.Text(key='-TOTAL_PRICE-')]
+        [sg.Text('Total'), sg.Text(key='-TOTAL_PRICE-')],
+        [blank_line()],
+        [sg.Column([[sg.Button('Cancel')]], element_justification='center')]
     ]
 
     title = [sg.Text('MY RESERVATIONS', font='* 14 bold')]
@@ -148,9 +150,12 @@ def my_reservations_window(sock):
          collapse([[sg.VerticalSeparator(), sg.Column(detail_col)]],
                   visible=False, key='sec_detail', alignment='center')],
         [blank_line()],
-        [sg.Button('Back')]]
+        [sg.Button('Back')]
+    ]
 
     window = sg.Window(TITLE, layout, finalize=True)
+
+    details = None
 
     # align content of reservations list
     window['listbox 0'].Widget.configure(justify='center', activestyle='none')
@@ -168,7 +173,10 @@ def my_reservations_window(sock):
             window.close()
             return main_menu_window
         elif event.startswith('listbox'):  # highlight line when user selects
-            row = window[event].get_indexes()[0]
+            try:
+                row = window[event].get_indexes()[0]
+            except:  # list is empty
+                continue
             for i in range(L_COLS):
                 window[f'listbox {i}'].update(set_to_index=row)
 
@@ -197,10 +205,30 @@ def my_reservations_window(sock):
             # show the detail panel
             window['sec_detail'].update(visible=True)
 
-        elif event.startswith('detailbox'):
-            row = window[event].get_indexes()[0]
+        elif event.startswith('detailbox'):  # highlight line when user selects detailbox
+            try:
+                row = window[event].get_indexes()[0]
+            except:  # list is empty
+                continue
+
             for i in range(D_COLS):
                 window[f'detailbox {i}'].update(set_to_index=row)
+        elif event == 'Cancel':  # when user presses cancel button
+            send(sock, pickle.dumps(Packet('cancel', details['reservation_id'])))
+            received_packet = receive(sock)
+
+            # if connection is terminated
+            if received_packet:
+                response = pickle.loads(received_packet)
+
+                if response.header == 'fail':
+                    popup_window('Cancel failed')
+                else:
+                    popup_window('Cancel successful')
+                    window.close()
+                    return my_reservations_window
+            else:
+                popup_window('Cannot access')
 
 
 def reserve_window(sock):
